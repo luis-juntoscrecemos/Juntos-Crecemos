@@ -1,0 +1,119 @@
+ROLE
+You are an expert full-stack engineer and product designer working inside Replit. Build a production-quality MVP for “Juntos Crecemos” with a modern UI, clean architecture, and secure Supabase usage.
+
+GOAL
+Start the project from scratch in this Replit workspace, but REUSE my existing Supabase project (database + auth). Do NOT create a new Supabase project.
+
+PRODUCT CONTEXT (IMPORTANT)
+- Product: Juntos Crecemos is a SaaS platform for South American NGOs to accept and manage donations.
+- Primary users:
+  1) NGO admins: sign up, manage their organization profile, create campaigns, view donation analytics/dashboards, export donation data.
+  2) Donors: use a fast, trustworthy, mobile-first donation form.
+- Core value: make it easy for NGOs to launch campaigns and receive donations with a professional, credible experience.
+
+REGION + LOCALIZATION DEFAULTS
+- Primary markets: South America. Default language: Spanish (with a future path to Portuguese).
+- Currency & formatting: support COP initially but design money/date formatting to be locale-aware (e.g., es-CO, es-PE, etc.).
+- UX should emphasize trust: clear organization identity, campaign purpose, secure-payment cues, and transparent confirmation states.
+
+STACK (NON-NEGOTIABLE)
+- Frontend: Next.js (TypeScript) using App Router.
+- UI: Tailwind CSS + shadcn/ui components (Radix-based). Do NOT add other UI libraries (no MUI/Chakra/etc.).
+- Backend: Go REST API (choose ONE framework: standard net/http OR Gin; be consistent).
+- Auth + DB: Supabase (existing project). Use Supabase Auth for sign-in/sign-up. DB is Postgres via Supabase.
+
+SECURITY + DATA ACCESS RULES (NON-NEGOTIABLE)
+- The browser must NEVER connect directly to the database for application data reads/writes.
+- The frontend may use Supabase (anon key) ONLY for authentication/session management.
+- All application data (organizations/campaigns/donations) must be read/written via the Go API.
+- Never expose Supabase service_role key to the browser. Only use it server-side if absolutely necessary and keep it in Replit Secrets.
+- Respect Supabase Row Level Security (RLS). Do not “bypass” authorization to make features work.
+
+REPLIT RUNTIME CONSTRAINTS (IMPORTANT)
+- Only ONE public-facing service/port: the Next.js app.
+- The Go API must run on an internal port and be accessed through a Next.js proxy/rewrite so the browser makes same-origin calls (avoid CORS).
+- Use Replit Workflows to run frontend + backend in parallel.
+- Use Replit Secrets for all environment variables (no hardcoded secrets, no committing .env).
+
+UI/UX + VISUAL DESIGN (HIGH PRIORITY)
+- Build a consistent design system and stick to it (no inconsistent one-off styling).
+- Create CSS variables/tokens for: colors, radius, spacing, typography. Use an 8px spacing system and consistent radius.
+- Theme: light mode first; neutral background; strong contrast.
+- Use my brand palette (red/white/gold for Juntos Crecemos) as accents only (buttons, links, highlights) — not large background fills.
+- Layout: mobile-first responsive; max content width ~1100–1200px; generous whitespace; card-based sections; clean empty states.
+- Trust UX: donation flow should feel credible (clear org identity, campaign summary, secure cues, clear confirmation screen, transparent error messaging).
+- UX: clear loading states, disabled states, validation messages, toasts/alerts. Use concise, friendly microcopy (no lorem ipsum).
+
+FIRST DELIVERABLES (DO THESE BEFORE BUILDING FEATURES)
+1) /style-guide page that shows:
+   - color tokens (including accent usage), typography scale, spacing examples
+   - button variants, inputs, selects, dialogs, toasts, cards, tables, empty states
+2) AppShell layout:
+   - sidebar + topbar dashboard shell using the same tokens/components
+   - responsive behavior (sidebar collapses on mobile)
+3) Only after (1) and (2) are done, start implementing real screens.
+
+MVP FEATURES (PHASE 1)
+A) Auth (Supabase Auth)
+- NGO admin signup/login
+- Keep session on the client using supabase-js
+- Attach Supabase access token to API requests (Authorization: Bearer <token>)
+
+B) Core entities (through Go API only)
+- Organizations: create/read/update org profile
+- Campaigns: CRUD campaigns (name, slug, goal, status, organization_id)
+- Donations: create donation (donor name, email, amount, message, recurring flag) tied to a campaign
+- Dashboard: list campaigns + donations; include a simple “Export donations CSV” endpoint + UI
+
+C) Donor-facing donation experience
+- Public donation page per campaign (SEO-friendly URL pattern)
+- Fast, mobile-first donation form with:
+  - preset amounts + custom amount
+  - donor name/email + optional message
+  - recurring toggle (store flag even if payments are stubbed initially)
+- After submit: clear confirmation state (and clear failure state)
+
+DB REUSE REQUIREMENTS (NO SCHEMA INVENTION)
+- Before writing data code, ask me to provide either:
+  (a) table list + key columns + relationships, or
+  (b) SQL schema dump
+- Generate Go models/DTOs that match the existing schema exactly.
+- Do NOT create new tables or change schema unless I explicitly ask.
+
+BACKEND REQUIREMENTS
+- Provide a clean folder structure for Go (cmd/api, internal/*).
+- Implement auth middleware that validates Supabase JWT access tokens.
+- Authorization must be enforced: org admins can only manage their org’s data (align with RLS assumptions).
+- Provide clear API route structure and consistent JSON responses + error format.
+
+FRONTEND REQUIREMENTS
+- Use shadcn/ui + Tailwind tokens for all UI.
+- Use React Hook Form + Zod (or equivalent) for forms and validation (choose and be consistent).
+- Create a typed API client layer for calling the Go API (avoid fetch calls scattered across components).
+- Create reusable UI components (cards, tables, empty states, form fields) and reuse them across pages.
+
+REPLIT SETUP TASKS
+- Create a Workflow named “Dev” that:
+  - installs deps
+  - runs Go API and Next.js dev server in parallel
+- Configure ports so Next.js is the only externally mapped port.
+- Document required Replit Secrets names and what they do.
+
+PROCESS (HOW YOU SHOULD WORK)
+1) Output a short plan:
+   - folder structure
+   - API endpoints list
+   - key UI routes/pages
+   - required Secrets env vars list
+2) Build the /style-guide and AppShell first.
+3) Then build features one vertical slice at a time (org → campaigns → donations).
+4) After each slice, ensure UI consistency (tokens/components) and confirm it runs in the Replit Dev workflow.
+
+IMPORTANT “DO NOT” LIST
+- Do not add QA/testing requirements yet (no Playwright/Jest/etc. for now).
+- Do not introduce extra UI libraries beyond Tailwind + shadcn/ui.
+- Do not invent or migrate the DB schema without asking me first.
+- Do not place Supabase service_role anywhere client-accessible.
+
+START NOW
+First, produce the plan and then ask me for the database schema details (table list/columns or SQL dump). Then proceed with /style-guide and AppShell.
