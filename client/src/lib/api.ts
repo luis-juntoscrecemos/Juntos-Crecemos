@@ -1,0 +1,136 @@
+import { getAccessToken } from './supabase';
+import type { 
+  Organization, 
+  Campaign, 
+  CampaignWithTotals,
+  Donation, 
+  InsertOrganization,
+  InsertCampaign,
+  InsertDonation,
+  DashboardStats,
+  ApiResponse 
+} from '@shared/schema';
+
+const API_BASE = '/api';
+
+async function apiRequest<T>(
+  endpoint: string, 
+  options: RequestInit = {}
+): Promise<ApiResponse<T>> {
+  const token = await getAccessToken();
+  
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...options.headers as Record<string, string>,
+  };
+  
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  try {
+    const response = await fetch(`${API_BASE}${endpoint}`, {
+      ...options,
+      headers,
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      return { error: data.error || 'Error en la solicitud' };
+    }
+
+    return { data };
+  } catch (error) {
+    return { error: 'Error de conexión' };
+  }
+}
+
+// Organizations
+export const organizationsApi = {
+  getMyOrganization: () => 
+    apiRequest<Organization>('/organizations/me'),
+  
+  update: (id: string, data: Partial<InsertOrganization>) =>
+    apiRequest<Organization>(`/organizations/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    }),
+  
+  create: (data: InsertOrganization) =>
+    apiRequest<Organization>('/organizations', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+};
+
+// Campaigns
+export const campaignsApi = {
+  list: () => 
+    apiRequest<CampaignWithTotals[]>('/campaigns'),
+  
+  get: (id: string) =>
+    apiRequest<CampaignWithTotals>(`/campaigns/${id}`),
+  
+  getBySlug: (slug: string) =>
+    apiRequest<CampaignWithTotals>(`/campaigns/slug/${slug}`),
+  
+  create: (data: InsertCampaign) =>
+    apiRequest<Campaign>('/campaigns', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  
+  update: (id: string, data: Partial<InsertCampaign>) =>
+    apiRequest<Campaign>(`/campaigns/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    }),
+  
+  delete: (id: string) =>
+    apiRequest<void>(`/campaigns/${id}`, {
+      method: 'DELETE',
+    }),
+};
+
+// Donations
+export const donationsApi = {
+  list: (campaignId?: string) => {
+    const query = campaignId ? `?campaign_id=${campaignId}` : '';
+    return apiRequest<Donation[]>(`/donations${query}`);
+  },
+  
+  create: (data: InsertDonation) =>
+    apiRequest<Donation>('/donations', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  
+  exportCsv: async () => {
+    const token = await getAccessToken();
+    const response = await fetch(`${API_BASE}/donations/export`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    return response.blob();
+  },
+};
+
+// Public API (no auth required)
+export const publicApi = {
+  getCampaign: (orgSlug: string, campaignSlug: string) =>
+    apiRequest<{ campaign: CampaignWithTotals; organization: Organization }>(
+      `/public/campaigns/${orgSlug}/${campaignSlug}`
+    ),
+  
+  createDonation: (data: InsertDonation & { org_id: string }) =>
+    apiRequest<Donation>('/public/donations', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+};
+
+// Dashboard
+export const dashboardApi = {
+  getStats: () =>
+    apiRequest<DashboardStats>('/dashboard/stats'),
+};

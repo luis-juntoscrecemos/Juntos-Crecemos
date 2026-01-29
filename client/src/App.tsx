@@ -1,16 +1,125 @@
-import { Switch, Route } from "wouter";
+import { useEffect } from "react";
+import { Switch, Route, Redirect, useLocation } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { AppShell } from "@/components/layout/AppShell";
+import { LoadingPage } from "@/components/common/LoadingSpinner";
+
 import NotFound from "@/pages/not-found";
+import Login from "@/pages/auth/Login";
+import Register from "@/pages/auth/Register";
+import Dashboard from "@/pages/Dashboard";
+import StyleGuide from "@/pages/StyleGuide";
+import OrganizationPage from "@/pages/Organization";
+import CampaignsPage from "@/pages/Campaigns";
+import DonationsPage from "@/pages/Donations";
+import SettingsPage from "@/pages/Settings";
+import DonatePage from "@/pages/public/DonatePage";
+
+function ProtectedRoute({ children }: { children: React.ReactNode }) {
+  const { user, loading } = useAuth();
+  const [, setLocation] = useLocation();
+
+  useEffect(() => {
+    if (!loading && !user) {
+      setLocation('/login');
+    }
+  }, [loading, user, setLocation]);
+
+  if (loading) {
+    return <LoadingPage />;
+  }
+
+  if (!user) {
+    return <LoadingPage />;
+  }
+
+  return <AppShell>{children}</AppShell>;
+}
+
+function AuthRoute({ children }: { children: React.ReactNode }) {
+  const { user, loading } = useAuth();
+  const [, setLocation] = useLocation();
+
+  useEffect(() => {
+    if (!loading && user) {
+      setLocation('/dashboard');
+    }
+  }, [loading, user, setLocation]);
+
+  if (loading) {
+    return <LoadingPage />;
+  }
+
+  if (user) {
+    return <LoadingPage />;
+  }
+
+  return <>{children}</>;
+}
 
 function Router() {
   return (
     <Switch>
-      {/* Add pages below */}
-      {/* <Route path="/" component={Home}/> */}
-      {/* Fallback to 404 */}
+      <Route path="/">
+        <Redirect to="/dashboard" />
+      </Route>
+
+      <Route path="/login">
+        <AuthRoute>
+          <Login />
+        </AuthRoute>
+      </Route>
+
+      <Route path="/register">
+        <AuthRoute>
+          <Register />
+        </AuthRoute>
+      </Route>
+
+      <Route path="/dashboard">
+        <ProtectedRoute>
+          <Dashboard />
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/style-guide">
+        <ProtectedRoute>
+          <StyleGuide />
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/organization">
+        <ProtectedRoute>
+          <OrganizationPage />
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/campaigns">
+        <ProtectedRoute>
+          <CampaignsPage />
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/donations">
+        <ProtectedRoute>
+          <DonationsPage />
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/settings">
+        <ProtectedRoute>
+          <SettingsPage />
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/donar/:orgSlug/:campaignSlug">
+        <DonatePage />
+      </Route>
+
       <Route component={NotFound} />
     </Switch>
   );
@@ -20,8 +129,10 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <Toaster />
-        <Router />
+        <AuthProvider>
+          <Toaster />
+          <Router />
+        </AuthProvider>
       </TooltipProvider>
     </QueryClientProvider>
   );
