@@ -86,7 +86,7 @@ export async function registerRoutes(
       const { data: authData, error: authError } = await supabase.auth.admin.createUser({
         email: email.trim().toLowerCase(),
         password,
-        email_confirm: false, // Will need email verification
+        email_confirm: true, // Skip email verification for development
       });
 
       if (authError || !authData.user) {

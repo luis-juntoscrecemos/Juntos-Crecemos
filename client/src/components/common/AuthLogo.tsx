@@ -1,4 +1,4 @@
-import logoPath from '@/assets/juntos-crecemos-logo.svg';
+import logoPath from '@/assets/juntos-crecemos-logo.png';
 
 interface AuthLogoProps {
   className?: string;
@@ -10,11 +10,10 @@ export function AuthLogo({ className = '' }: AuthLogoProps) {
       <img 
         src={logoPath} 
         alt="Juntos Crecemos" 
-        className="h-12 mx-auto mb-4"
+        className="h-24 mx-auto mb-2"
         data-testid="img-logo"
       />
-      <h1 className="text-2xl font-bold">Juntos Crecemos</h1>
-      <p className="text-muted-foreground mt-1">Plataforma de Donaciones para ONGs</p>
+      <p className="text-muted-foreground">Plataforma de Donaciones para ONGs</p>
     </div>
   );
 }
