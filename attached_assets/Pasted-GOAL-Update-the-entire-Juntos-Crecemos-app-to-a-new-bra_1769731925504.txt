@@ -1,0 +1,76 @@
+GOAL
+Update the entire Juntos Crecemos app to a new brand color scheme using Tailwind + shadcn/ui tokens (CSS custom properties). The current theme is red/gold; replace it everywhere with the new palette below. Do not hardcode random hex colors inside components—everything must flow from the CSS variables and Tailwind semantic classes.
+
+STACK CONTEXT
+- Tailwind CSS utilities (bg-primary, text-foreground, etc.)
+- shadcn/ui components in client/src/components/ui/
+- Design tokens defined as CSS custom properties in client/src/index.css using HSL values
+- Dark mode variables exist under `.dark`
+
+NEW PALETTE (AUTHORITATIVE)
+Use these exact hex colors as the source of truth:
+- Primary (CTA / links): #16A34A
+- Primary Hover: #15803D
+- Navy (header/footer/side nav): #0B2D39
+- Navy Hover: #08242D
+- Accent (small highlights only): #F4B400
+- Background: #F7FAFC
+- Surface: #FFFFFF
+- Text: #111827
+- Muted Text: #6B7280
+- Border: #E5E7EB
+- Error: #DC2626
+- Warning: #F59E0B
+
+IMPLEMENTATION REQUIREMENTS (NON-NEGOTIABLE)
+1) Convert the hex colors above into HSL and update the CSS variables in:
+   - client/src/index.css
+   Replace the current red/gold theme tokens (e.g., primary: 0 72% 51%, accent: 43 96% 56%) with the new palette.
+
+2) Use shadcn/ui’s semantic tokens:
+   Ensure these variables exist and are set correctly in :root (light mode):
+   --background, --foreground
+   --card, --card-foreground
+   --popover, --popover-foreground
+   --primary, --primary-foreground
+   --secondary, --secondary-foreground
+   --muted, --muted-foreground
+   --accent, --accent-foreground
+   --destructive, --destructive-foreground
+   --border, --input, --ring
+   And in `.dark` provide a coherent dark palette (derived from the same brand) with good contrast.
+
+3) Map tokens to brand intent:
+   - Set --primary to Primary green (#16A34A).
+   - Set --accent to Accent gold (#F4B400) BUT do not use accent for large backgrounds; it’s for highlights/badges.
+   - Use navy (#0B2D39) for nav/sidebar/topbar. Implement this via:
+     a) A dedicated utility class (e.g., bg-brand-navy) added in tailwind.config OR
+     b) Additional CSS variable (e.g., --nav) used by the layout.
+   Prefer option (a) if the project already extends Tailwind colors.
+
+4) Focus + rings:
+   - Set --ring to Primary (or a close HSL variant) so focus rings stop being default blue.
+   - Ensure form inputs, buttons, and interactive elements show accessible focus.
+
+5) Global sweep (replace old colors):
+   - Remove/replace any direct use of red/gold hex values or HSL values in components.
+   - Search and replace classes like bg-red-*, text-red-*, border-red-*, bg-yellow-*, etc. with semantic classes (bg-primary, text-primary, bg-accent, text-muted-foreground, border-border, bg-background, etc.).
+   - For charts, set defaults to Primary and use Accent sparingly.
+
+6) Buttons and states:
+   - Primary button: bg-primary text-primary-foreground hover uses Primary Hover.
+     If shadcn Button uses --primary only, implement hover via:
+       - updating button variants in client/src/components/ui/button.tsx to use a hover class that matches Primary Hover, OR
+       - add a CSS variable like --primary-hover and reference it in button styles.
+   - Destructive: uses --destructive (#DC2626).
+   - Secondary/outline: uses border-border + text-foreground and subtle hover.
+
+7) Deliverables:
+   - List the exact files changed (at least index.css and likely tailwind.config + some ui components).
+   - Confirm that no old red/gold styling remains visible anywhere.
+   - The app should look consistent across landing, auth, dashboard, campaigns, donation form, modals, and toasts.
+
+IMPORTANT NOTES
+- Keep spacing (8px base) and radius (--radius: 0.5rem) as-is.
+- Keep Inter font as-is.
+- Don’t introduce additional brand colors beyond what’s needed for semantics.

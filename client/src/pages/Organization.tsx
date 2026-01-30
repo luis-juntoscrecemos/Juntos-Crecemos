@@ -123,7 +123,7 @@ export default function OrganizationPage() {
                 </div>
                 <div className="flex items-center gap-2">
                   {organization.verified ? (
-                    <Badge className="bg-green-500 text-white">
+                    <Badge className="bg-success text-success-foreground">
                       <CheckCircle className="w-3 h-3 mr-1" />
                       Verificada
                     </Badge>

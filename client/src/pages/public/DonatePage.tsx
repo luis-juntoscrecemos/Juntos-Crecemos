@@ -257,11 +257,11 @@ function DonationForm({ campaign, organization, onSuccess }: DonationFormProps) 
 function SuccessScreen({ campaign, organization }: { campaign: CampaignWithTotals; organization: Organization }) {
   return (
     <div className="text-center py-12 space-y-6">
-      <div className="w-20 h-20 rounded-full bg-green-100 flex items-center justify-center mx-auto">
-        <CheckCircle className="w-10 h-10 text-green-600" />
+      <div className="w-20 h-20 rounded-full bg-success/10 flex items-center justify-center mx-auto">
+        <CheckCircle className="w-10 h-10 text-success" />
       </div>
       <div>
-        <h2 className="text-2xl font-bold text-green-600">¡Gracias por tu donación!</h2>
+        <h2 className="text-2xl font-bold text-success">¡Gracias por tu donación!</h2>
         <p className="text-muted-foreground mt-2">
           Tu contribución a "{campaign.title}" ayuda a {organization.name} a continuar su misión.
         </p>

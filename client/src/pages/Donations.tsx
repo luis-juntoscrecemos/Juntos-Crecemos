@@ -36,9 +36,9 @@ function formatDate(dateString: string): string {
 function getStatusBadge(status: string) {
   switch (status) {
     case 'paid':
-      return <Badge className="bg-green-500 text-white">Completada</Badge>;
+      return <Badge className="bg-success text-success-foreground">Completada</Badge>;
     case 'pending':
-      return <Badge className="bg-yellow-500 text-black">Pendiente</Badge>;
+      return <Badge className="bg-warning text-warning-foreground">Pendiente</Badge>;
     case 'failed':
       return <Badge variant="destructive">Fallida</Badge>;
     default:

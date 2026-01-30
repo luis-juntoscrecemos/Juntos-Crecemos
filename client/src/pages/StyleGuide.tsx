@@ -22,13 +22,14 @@ import { StatsCard } from '@/components/common/StatsCard';
 import { EmptyState } from '@/components/common/EmptyState';
 
 const colorTokens = [
-  { name: 'Primary (Rojo)', variable: '--primary', class: 'bg-primary', textClass: 'text-primary-foreground' },
+  { name: 'Primary (Verde)', variable: '--primary', class: 'bg-primary', textClass: 'text-primary-foreground' },
   { name: 'Accent (Oro)', variable: '--accent', class: 'bg-accent', textClass: 'text-accent-foreground' },
   { name: 'Secondary', variable: '--secondary', class: 'bg-secondary', textClass: 'text-secondary-foreground' },
   { name: 'Muted', variable: '--muted', class: 'bg-muted', textClass: 'text-muted-foreground' },
   { name: 'Destructive', variable: '--destructive', class: 'bg-destructive', textClass: 'text-destructive-foreground' },
   { name: 'Card', variable: '--card', class: 'bg-card border', textClass: 'text-card-foreground' },
   { name: 'Background', variable: '--background', class: 'bg-background border', textClass: 'text-foreground' },
+  { name: 'Sidebar (Navy)', variable: '--sidebar', class: 'bg-sidebar', textClass: 'text-sidebar-foreground' },
 ];
 
 const spacingExamples = [
@@ -73,7 +74,7 @@ export default function StyleGuide() {
           <section>
             <h2 className="text-xl font-semibold mb-4">Tokens de Color</h2>
             <p className="text-muted-foreground mb-6">
-              Paleta de marca: Rojo para acción principal, Oro para acentos, neutrales para fondos.
+              Paleta de marca: Verde para acción principal, Navy para navegación, Oro para acentos.
             </p>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
               {colorTokens.map((token) => (
@@ -93,10 +94,10 @@ export default function StyleGuide() {
           <section>
             <h2 className="text-xl font-semibold mb-4">Colores de Estado</h2>
             <div className="flex flex-wrap gap-4">
-              <Badge className="bg-green-500 text-white">Completado</Badge>
-              <Badge className="bg-yellow-500 text-black">Pendiente</Badge>
-              <Badge className="bg-red-500 text-white">Error</Badge>
-              <Badge className="bg-blue-500 text-white">Información</Badge>
+              <Badge className="bg-success text-success-foreground">Completado</Badge>
+              <Badge className="bg-warning text-warning-foreground">Pendiente</Badge>
+              <Badge variant="destructive">Error</Badge>
+              <Badge className="bg-primary text-primary-foreground">Información</Badge>
               <Badge variant="secondary">Inactivo</Badge>
               <Badge variant="outline">Borrador</Badge>
             </div>
@@ -372,7 +373,7 @@ export default function StyleGuide() {
                     <TableCell className="font-medium">María García</TableCell>
                     <TableCell>Educación Rural</TableCell>
                     <TableCell>$500,000 COP</TableCell>
-                    <TableCell><Badge className="bg-green-500 text-white">Completada</Badge></TableCell>
+                    <TableCell><Badge className="bg-success text-success-foreground">Completada</Badge></TableCell>
                     <TableCell className="text-right">
                       <Button size="icon" variant="ghost"><Eye className="w-4 h-4" /></Button>
                     </TableCell>
@@ -381,7 +382,7 @@ export default function StyleGuide() {
                     <TableCell className="font-medium">Carlos López</TableCell>
                     <TableCell>Alimentación</TableCell>
                     <TableCell>$1,000,000 COP</TableCell>
-                    <TableCell><Badge className="bg-yellow-500 text-black">Pendiente</Badge></TableCell>
+                    <TableCell><Badge className="bg-warning text-warning-foreground">Pendiente</Badge></TableCell>
                     <TableCell className="text-right">
                       <Button size="icon" variant="ghost"><Eye className="w-4 h-4" /></Button>
                     </TableCell>

@@ -156,7 +156,7 @@ export default function Dashboard() {
                       </p>
                       <Badge 
                         variant="secondary" 
-                        className={donation.status === 'paid' ? 'bg-green-100 text-green-700' : ''}
+                        className={donation.status === 'paid' ? 'bg-success/10 text-success' : ''}
                       >
                         {donation.status === 'paid' ? 'Completada' : donation.status}
                       </Badge>

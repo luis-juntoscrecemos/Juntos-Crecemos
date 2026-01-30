@@ -78,11 +78,24 @@ Note: Frontend receives Supabase config via `/api/config` endpoint to avoid need
 The app runs via the "Start application" workflow which executes `npm run dev`. This starts both the Express backend and Vite frontend dev server.
 
 ## Design System
-- **Primary Color**: Red (0 72% 51%) - Brand color for CTAs
-- **Accent Color**: Gold (43 96% 56%) - Secondary highlights
+- **Primary Color**: Green #16A34A (142 76% 36%) - Brand color for CTAs and links
+- **Primary Hover**: #15803D (142 72% 29%) - Darker green for hover states
+- **Sidebar/Nav**: Navy #0B2D39 (194 69% 13%) - Dark navy for navigation
+- **Accent Color**: Gold #F4B400 (45 100% 48%) - Small highlights only
+- **Success**: Same as primary green
+- **Warning**: #F59E0B (38 92% 50%)
+- **Destructive/Error**: #DC2626 (0 84% 50%)
 - **Typography**: Inter font family
 - **Spacing**: 8px base system
 - **Border Radius**: 8px (--radius: .5rem)
+
+### Color Usage Guidelines
+- Use `bg-primary`, `text-primary` for CTA buttons and links
+- Use `bg-sidebar` for navigation backgrounds (navy)
+- Use `bg-success`, `text-success` for success states
+- Use `bg-warning`, `text-warning` for pending/warning states
+- Use `bg-destructive`, `text-destructive` for errors
+- Use `bg-accent` sparingly for small highlights/badges only
 
 ## Localization
 - Primary language: Spanish (es-CO)

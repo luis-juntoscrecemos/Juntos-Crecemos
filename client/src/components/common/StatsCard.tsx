@@ -24,7 +24,7 @@ export function StatsCard({ title, value, icon: Icon, description, trend }: Stat
               <p className="text-xs text-muted-foreground">{description}</p>
             )}
             {trend && (
-              <p className={`text-xs font-medium ${trend.isPositive ? 'text-green-600' : 'text-red-600'}`}>
+              <p className={`text-xs font-medium ${trend.isPositive ? 'text-success' : 'text-destructive'}`}>
                 {trend.isPositive ? '+' : ''}{trend.value}% vs. mes anterior
               </p>
             )}

@@ -2,7 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-/* LIGHT MODE - Juntos Crecemos Brand: Red/White/Gold accents on neutral background */
+/* LIGHT MODE - Juntos Crecemos Brand: Green/Navy/Gold accents */
 :root {
   --button-outline: rgba(0,0,0, .10);
   --badge-outline: rgba(0,0,0, .05);
@@ -14,74 +14,93 @@
   --elevate-1: rgba(0,0,0, .03);
   --elevate-2: rgba(0,0,0, .08);
 
-  /* Neutral light background */
-  --background: 0 0% 98%;
+  /* Background - #F7FAFC */
+  --background: 204 33% 97%;
 
-  --foreground: 0 0% 9%;
+  /* Text - #111827 */
+  --foreground: 221 39% 11%;
 
-  --border: 0 0% 90%;
+  /* Border - #E5E7EB */
+  --border: 220 13% 91%;
 
+  /* Surface - #FFFFFF */
   --card: 0 0% 100%;
 
-  --card-foreground: 0 0% 9%;
+  /* Card foreground - #111827 */
+  --card-foreground: 221 39% 11%;
 
-  --card-border: 0 0% 92%;
+  --card-border: 220 13% 91%;
 
-  /* Sidebar - slightly tinted */
-  --sidebar: 0 0% 97%;
+  /* Sidebar - Navy #0B2D39 */
+  --sidebar: 194 69% 13%;
 
-  --sidebar-foreground: 0 0% 20%;
+  /* Sidebar text - light on dark */
+  --sidebar-foreground: 0 0% 95%;
 
-  --sidebar-border: 0 0% 90%;
+  --sidebar-border: 194 71% 10%;
 
-  /* Sidebar primary - Brand Red */
-  --sidebar-primary: 0 72% 51%;
+  /* Sidebar primary - Primary Green */
+  --sidebar-primary: 142 76% 36%;
 
   --sidebar-primary-foreground: 0 0% 100%;
 
-  /* Sidebar accent - subtle hover */
-  --sidebar-accent: 0 0% 93%;
+  /* Sidebar accent - lighter navy for hover */
+  --sidebar-accent: 194 50% 20%;
 
-  --sidebar-accent-foreground: 0 0% 15%;
+  --sidebar-accent-foreground: 0 0% 95%;
 
-  --sidebar-ring: 0 72% 51%;
+  --sidebar-ring: 142 76% 36%;
 
   --popover: 0 0% 100%;
 
-  --popover-foreground: 0 0% 9%;
+  --popover-foreground: 221 39% 11%;
 
-  --popover-border: 0 0% 90%;
+  --popover-border: 220 13% 91%;
 
-  /* Primary - Brand Red (Juntos Crecemos) */
-  --primary: 0 72% 51%;
+  /* Primary - Green #16A34A */
+  --primary: 142 76% 36%;
 
   --primary-foreground: 0 0% 100%;
 
-  /* Secondary - Neutral */
-  --secondary: 0 0% 96%;
+  /* Primary hover - #15803D */
+  --primary-hover: 142 72% 29%;
 
-  --secondary-foreground: 0 0% 15%;
+  /* Secondary - Neutral */
+  --secondary: 220 13% 95%;
+
+  --secondary-foreground: 221 39% 11%;
 
   /* Muted */
-  --muted: 0 0% 96%;
+  --muted: 220 13% 95%;
 
-  --muted-foreground: 0 0% 45%;
+  /* Muted Text - #6B7280 */
+  --muted-foreground: 220 9% 46%;
 
-  /* Accent - Gold (Juntos Crecemos) */
-  --accent: 43 96% 56%;
+  /* Accent - Gold #F4B400 (for highlights only) */
+  --accent: 45 100% 48%;
 
-  --accent-foreground: 0 0% 9%;
+  --accent-foreground: 221 39% 11%;
 
-  /* Destructive */
-  --destructive: 0 84% 60%;
+  /* Destructive - Error #DC2626 */
+  --destructive: 0 84% 50%;
 
   --destructive-foreground: 0 0% 100%;
 
-  --input: 0 0% 85%;
-  --ring: 0 72% 51%;
-  --chart-1: 0 72% 51%;
-  --chart-2: 43 96% 56%;
-  --chart-3: 142 76% 36%;
+  /* Warning - #F59E0B */
+  --warning: 38 92% 50%;
+
+  --warning-foreground: 221 39% 11%;
+
+  /* Success - Primary green */
+  --success: 142 76% 36%;
+
+  --success-foreground: 0 0% 100%;
+
+  --input: 220 13% 85%;
+  --ring: 142 76% 36%;
+  --chart-1: 142 76% 36%;
+  --chart-2: 45 100% 48%;
+  --chart-3: 194 69% 35%;
   --chart-4: 200 88% 48%;
   --chart-5: 280 65% 60%;
 
@@ -141,66 +160,80 @@
   --elevate-1: rgba(255,255,255, .04);
   --elevate-2: rgba(255,255,255, .09);
 
-  --background: 0 0% 7%;
+  /* Dark background based on navy */
+  --background: 194 50% 7%;
 
   --foreground: 0 0% 95%;
 
-  --border: 0 0% 18%;
+  --border: 194 30% 18%;
 
-  --card: 0 0% 10%;
+  --card: 194 40% 10%;
 
   --card-foreground: 0 0% 95%;
 
-  --card-border: 0 0% 16%;
+  --card-border: 194 30% 16%;
 
-  --sidebar: 0 0% 8%;
+  /* Sidebar - darker navy */
+  --sidebar: 194 60% 5%;
 
   --sidebar-foreground: 0 0% 90%;
 
-  --sidebar-border: 0 0% 16%;
+  --sidebar-border: 194 40% 12%;
 
-  --sidebar-primary: 0 72% 55%;
+  --sidebar-primary: 142 76% 42%;
 
   --sidebar-primary-foreground: 0 0% 100%;
 
-  --sidebar-accent: 0 0% 14%;
+  --sidebar-accent: 194 40% 14%;
 
   --sidebar-accent-foreground: 0 0% 95%;
 
-  --sidebar-ring: 0 72% 55%;
+  --sidebar-ring: 142 76% 42%;
 
-  --popover: 0 0% 10%;
+  --popover: 194 40% 10%;
 
   --popover-foreground: 0 0% 95%;
 
-  --popover-border: 0 0% 18%;
+  --popover-border: 194 30% 18%;
 
-  --primary: 0 72% 55%;
+  /* Primary green - slightly brighter for dark mode */
+  --primary: 142 76% 42%;
 
   --primary-foreground: 0 0% 100%;
 
-  --secondary: 0 0% 15%;
+  --primary-hover: 142 72% 35%;
+
+  --secondary: 194 30% 15%;
 
   --secondary-foreground: 0 0% 95%;
 
-  --muted: 0 0% 15%;
+  --muted: 194 30% 15%;
 
-  --muted-foreground: 0 0% 60%;
+  --muted-foreground: 220 9% 60%;
 
-  --accent: 43 96% 56%;
+  /* Accent gold - same for dark mode */
+  --accent: 45 100% 48%;
 
-  --accent-foreground: 0 0% 9%;
+  --accent-foreground: 221 39% 11%;
 
   --destructive: 0 72% 50%;
 
   --destructive-foreground: 0 0% 100%;
 
+  --warning: 38 92% 50%;
+
+  --warning-foreground: 221 39% 11%;
+
+  --success: 142 76% 42%;
+
+  --success-foreground: 0 0% 100%;
+
   /* Used as the border around inputs. Dark mode: Should be a border that is light enough to have high contrast when rendered on a --card background. More contrast than standard --border */
-  --input: 0 0% 25%;
-  --ring: 0 72% 55%;
-  --chart-1: 0 72% 55%;
-  --chart-2: 43 96% 56%;
-  --chart-3: 142 76% 46%;
+  --input: 194 30% 25%;
+  --ring: 142 76% 42%;
+  --chart-1: 142 76% 42%;
+  --chart-2: 45 100% 48%;
+  --chart-3: 194 69% 45%;
   --chart-4: 200 88% 58%;
   --chart-5: 280 65% 70%;
 
