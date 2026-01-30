@@ -73,6 +73,7 @@ Note: Frontend receives Supabase config via `/api/config` endpoint to avoid need
 ### Public (no auth)
 - `GET /api/public/campaigns/:orgSlug/:campaignSlug` - Get public campaign + organization
 - `POST /api/public/donations` - Create donation (for public donation form)
+- `POST /api/auth/register-org` - Register new organization (multipart form with logo upload)
 
 ## Running the App
 The app runs via the "Start application" workflow which executes `npm run dev`. This starts both the Express backend and Vite frontend dev server.

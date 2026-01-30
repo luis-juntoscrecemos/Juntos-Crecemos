@@ -1,18 +1,23 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Link, useLocation } from 'wouter';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Mail, Lock, Eye, EyeOff, Building2 } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, Building2, Globe, Upload, X, Image } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
-import { useAuth } from '@/contexts/AuthContext';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
+import { AuthLogo } from '@/components/common/AuthLogo';
+
+const MAX_FILE_SIZE = 2 * 1024 * 1024; // 2MB
+const ACCEPTED_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
 
 const registerSchema = z.object({
+  orgName: z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
+  website: z.string().url('URL inválida').optional().or(z.literal('')),
   email: z.string().email('Correo electrónico inválido'),
   password: z.string().min(6, 'La contraseña debe tener al menos 6 caracteres'),
   confirmPassword: z.string(),
@@ -27,55 +32,110 @@ export default function Register() {
   const [, setLocation] = useLocation();
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const { signUp } = useAuth();
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const [logoError, setLogoError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
   const form = useForm<RegisterFormData>({
     resolver: zodResolver(registerSchema),
     defaultValues: {
+      orgName: '',
+      website: '',
       email: '',
       password: '',
       confirmPassword: '',
     },
   });
 
+  const handleLogoSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    setLogoError(null);
+    
+    if (!file) {
+      return;
+    }
+
+    if (!ACCEPTED_IMAGE_TYPES.includes(file.type)) {
+      setLogoError('Solo se permiten imágenes PNG, JPG o WebP');
+      return;
+    }
+
+    if (file.size > MAX_FILE_SIZE) {
+      setLogoError('El archivo debe ser menor a 2MB');
+      return;
+    }
+
+    setLogoFile(file);
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setLogoPreview(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const removeLogo = () => {
+    setLogoFile(null);
+    setLogoPreview(null);
+    setLogoError(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
   async function onSubmit(data: RegisterFormData) {
     setIsLoading(true);
-    const { error } = await signUp(data.email, data.password);
-    setIsLoading(false);
+    
+    try {
+      const formData = new FormData();
+      formData.append('orgName', data.orgName);
+      formData.append('email', data.email);
+      formData.append('password', data.password);
+      if (data.website) {
+        formData.append('website', data.website);
+      }
+      if (logoFile) {
+        formData.append('logo', logoFile);
+      }
 
-    if (error) {
+      const response = await fetch('/api/auth/register-org', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Error al registrar la organización');
+      }
+
+      toast({
+        title: 'Organización registrada',
+        description: 'Tu cuenta ha sido creada. Revisa tu correo para confirmar.',
+      });
+      setLocation('/login');
+    } catch (error: any) {
       toast({
         variant: 'destructive',
         title: 'Error al registrarse',
         description: error.message || 'No se pudo crear la cuenta',
       });
-      return;
+    } finally {
+      setIsLoading(false);
     }
-
-    toast({
-      title: 'Cuenta creada',
-      description: 'Revisa tu correo para confirmar tu cuenta',
-    });
-    setLocation('/login');
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
+    <div className="min-h-screen flex items-center justify-center bg-background p-4 py-8">
       <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <div className="w-16 h-16 rounded-xl bg-primary mx-auto flex items-center justify-center mb-4">
-            <span className="text-primary-foreground font-bold text-2xl">JC</span>
-          </div>
-          <h1 className="text-2xl font-bold">Juntos Crecemos</h1>
-          <p className="text-muted-foreground mt-1">Registra tu ONG</p>
-        </div>
+        <AuthLogo />
 
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Building2 className="w-5 h-5" />
-              Crear cuenta
+              Crear cuenta de organización
             </CardTitle>
             <CardDescription>
               Registra tu organización para comenzar a recibir donaciones
@@ -86,10 +146,115 @@ export default function Register() {
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                 <FormField
                   control={form.control}
+                  name="orgName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Nombre de la organización *</FormLabel>
+                      <FormControl>
+                        <div className="relative">
+                          <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                          <Input
+                            placeholder="Fundación Ejemplo"
+                            className="pl-10"
+                            data-testid="input-org-name"
+                            {...field}
+                          />
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="website"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Sitio web (opcional)</FormLabel>
+                      <FormControl>
+                        <div className="relative">
+                          <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                          <Input
+                            type="url"
+                            placeholder="https://www.tuong.org"
+                            className="pl-10"
+                            data-testid="input-website"
+                            {...field}
+                          />
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <div className="space-y-2">
+                  <FormLabel>Logo de la organización (opcional)</FormLabel>
+                  <div className="flex items-start gap-4">
+                    {logoPreview ? (
+                      <div className="relative">
+                        <div className="w-20 h-20 rounded-lg border overflow-hidden bg-muted">
+                          <img 
+                            src={logoPreview} 
+                            alt="Logo preview" 
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          size="icon"
+                          className="absolute -top-2 -right-2 h-6 w-6"
+                          onClick={removeLogo}
+                          data-testid="button-remove-logo"
+                        >
+                          <X className="w-3 h-3" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <div 
+                        className="w-20 h-20 rounded-lg border-2 border-dashed flex items-center justify-center cursor-pointer hover:bg-muted/50 transition-colors"
+                        onClick={() => fileInputRef.current?.click()}
+                      >
+                        <Image className="w-8 h-8 text-muted-foreground" />
+                      </div>
+                    )}
+                    <div className="flex-1 space-y-2">
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/png,image/jpeg,image/webp"
+                        onChange={handleLogoSelect}
+                        className="hidden"
+                        data-testid="input-logo"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => fileInputRef.current?.click()}
+                        data-testid="button-upload-logo"
+                      >
+                        <Upload className="w-4 h-4 mr-2" />
+                        Subir logo
+                      </Button>
+                      <p className="text-xs text-muted-foreground">
+                        PNG, JPG o WebP. Máximo 2MB.
+                      </p>
+                      {logoError && (
+                        <p className="text-xs text-destructive">{logoError}</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <FormField
+                  control={form.control}
                   name="email"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Correo electrónico</FormLabel>
+                      <FormLabel>Correo electrónico *</FormLabel>
                       <FormControl>
                         <div className="relative">
                           <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -102,6 +267,9 @@ export default function Register() {
                           />
                         </div>
                       </FormControl>
+                      <FormDescription>
+                        Este será el correo de acceso y contacto de tu organización
+                      </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -112,7 +280,7 @@ export default function Register() {
                   name="password"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Contraseña</FormLabel>
+                      <FormLabel>Contraseña *</FormLabel>
                       <FormControl>
                         <div className="relative">
                           <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -148,7 +316,7 @@ export default function Register() {
                   name="confirmPassword"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Confirmar contraseña</FormLabel>
+                      <FormLabel>Confirmar contraseña *</FormLabel>
                       <FormControl>
                         <div className="relative">
                           <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -175,7 +343,7 @@ export default function Register() {
                   {isLoading ? (
                     <>
                       <LoadingSpinner size="sm" className="mr-2" />
-                      Creando cuenta...
+                      Registrando organización...
                     </>
                   ) : (
                     'Crear cuenta'

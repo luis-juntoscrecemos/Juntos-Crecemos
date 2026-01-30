@@ -1,0 +1,63 @@
+FEATURE: Upgrade “Organization Sign Up” flow to collect and persist organization profile data.
+
+CURRENT STATE
+- App uses Supabase Auth email/password for org signup.
+- Tailwind + shadcn/ui.
+- There is an `organizations` table in Supabase.
+- Goal: email belongs to the organization account (not an individual person).
+
+NEW SIGNUP FORM (ORG REGISTER)
+Replace the org registration UI to include:
+1) Organization Name (required)
+2) Organization Website (optional but validate URL format if present)
+3) Organization Logo upload (optional at signup; file types png/jpg/webp; max 2MB)
+4) Email (required)
+5) Password + Confirm Password (required)
+
+DATA MODEL REQUIREMENTS (SUPABASE)
+We must store this data in the `organizations` table:
+- name (text)
+- website (text nullable)
+- email (text)  // org email, same as auth email
+- logo_url (text nullable) OR logo_path (text nullable)
+- slug (text unique) // generated from name
+- created_at (timestamp default now())
+
+If columns do not exist yet, provide SQL to add them (no breaking changes).
+
+AUTH + INSERT FLOW (IMPORTANT ORDER)
+On submit:
+A) Create Supabase auth user with email/password.
+B) Immediately create an `organizations` row using the submitted org data.
+   - Generate `slug` from org name (lowercase, hyphenated, remove accents, ensure uniqueness with a suffix if needed).
+   - Save `email` to the organizations row.
+C) If logo was provided:
+   - Upload to Supabase Storage bucket named `org-logos` (create bucket if needed).
+   - File path convention: `${orgId}/logo.<ext>` (use the newly created org row id).
+   - After upload, generate a public URL (or signed URL depending on policy) and update `organizations.logo_url` (or save logo_path).
+D) Create/link relationship:
+   - If the project uses `organization_users`, insert a row linking the auth user id to the org id with role `admin`.
+   - If not used, store `owner_user_id` on organizations (add column if needed) and set it to auth user id.
+
+RLS + STORAGE POLICIES (DO NOT SKIP)
+- Ensure RLS allows the newly created authenticated org account to:
+  - insert its own org row (during signup)
+  - update its org row (for logo_url update)
+- Ensure storage policy allows authenticated users to upload to `org-logos` under their org folder.
+If policies are missing, output the SQL policies needed.
+
+UI/UX REQUIREMENTS
+- Use shadcn/ui components.
+- Show inline errors (password mismatch, invalid URL, upload too large, etc.)
+- Disable submit while processing; show spinner.
+- On success redirect to Organization Dashboard and display the org name + logo if available.
+- Ensure the login page still works for org accounts.
+
+BRANDING
+- Add the Juntos Crecemos logo to the auth pages (Login/Register layouts).
+- I will provide the logo asset. Create a clear place for it (e.g., `client/src/assets/juntos-crecemos-logo.svg`) and render it at the top of auth cards.
+
+DELIVERABLES
+- List files changed.
+- Provide any SQL migrations/policies required (tables + storage).
+- Confirm the signup flow writes rows into `organizations` and uploads logos to storage.

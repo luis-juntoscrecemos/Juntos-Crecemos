@@ -11,6 +11,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
+import { AuthLogo } from '@/components/common/AuthLogo';
 
 const loginSchema = z.object({
   email: z.string().email('Correo electrónico inválido'),
@@ -58,13 +59,7 @@ export default function Login() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <div className="w-16 h-16 rounded-xl bg-primary mx-auto flex items-center justify-center mb-4">
-            <span className="text-primary-foreground font-bold text-2xl">JC</span>
-          </div>
-          <h1 className="text-2xl font-bold">Juntos Crecemos</h1>
-          <p className="text-muted-foreground mt-1">Plataforma de Donaciones para ONGs</p>
-        </div>
+        <AuthLogo />
 
         <Card>
           <CardHeader>

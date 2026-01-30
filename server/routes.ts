@@ -1,7 +1,41 @@
-import type { Express } from "express";
+import type { Express, Request } from "express";
 import { createServer, type Server } from "http";
 import { supabase } from "./supabase";
 import { authMiddleware, optionalAuthMiddleware, type AuthenticatedRequest } from "./middleware/auth";
+import multer, { FileFilterCallback } from "multer";
+
+// Configure multer for file uploads
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 2 * 1024 * 1024, // 2MB limit
+  },
+  fileFilter: (req: Request, file: Express.Multer.File, cb: FileFilterCallback) => {
+    const allowedTypes = ['image/png', 'image/jpeg', 'image/webp'];
+    if (allowedTypes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Solo se permiten imágenes PNG, JPG o WebP'));
+    }
+  },
+});
+
+// Extend Request to include file from multer
+interface RequestWithFile extends Request {
+  file?: Express.Multer.File;
+}
+
+// Helper to generate slug from organization name
+function generateSlug(name: string): string {
+  return name
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '') // Remove accents
+    .replace(/[^a-z0-9\s-]/g, '') // Remove special chars
+    .replace(/\s+/g, '-') // Replace spaces with hyphens
+    .replace(/-+/g, '-') // Replace multiple hyphens with single
+    .replace(/^-|-$/g, ''); // Remove leading/trailing hyphens
+}
 
 export async function registerRoutes(
   httpServer: Server,
@@ -17,6 +51,169 @@ export async function registerRoutes(
       supabaseAnonKey: process.env.SUPABASE_ANON_KEY || '',
     });
   });
+
+  // ============================================
+  // Organization Registration (Auth + Org Creation)
+  // ============================================
+  app.post('/api/auth/register-org', upload.single('logo'), async (req: RequestWithFile, res) => {
+    try {
+      const { orgName, email, password, website } = req.body;
+      const logoFile = req.file;
+
+      // Server-side validation
+      if (!orgName || typeof orgName !== 'string' || orgName.trim().length < 2) {
+        return res.status(400).json({ error: 'El nombre debe tener al menos 2 caracteres' });
+      }
+
+      if (!email || typeof email !== 'string' || !email.includes('@')) {
+        return res.status(400).json({ error: 'Correo electrónico inválido' });
+      }
+
+      if (!password || typeof password !== 'string' || password.length < 6) {
+        return res.status(400).json({ error: 'La contraseña debe tener al menos 6 caracteres' });
+      }
+
+      // Validate website URL format if provided
+      if (website && typeof website === 'string' && website.trim()) {
+        try {
+          new URL(website);
+        } catch {
+          return res.status(400).json({ error: 'URL del sitio web inválida' });
+        }
+      }
+
+      // Step A: Create Supabase auth user
+      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+        email: email.trim().toLowerCase(),
+        password,
+        email_confirm: false, // Will need email verification
+      });
+
+      if (authError || !authData.user) {
+        console.error('Auth signup error:', authError);
+        if (authError?.message?.includes('already registered')) {
+          return res.status(400).json({ error: 'Este correo ya está registrado' });
+        }
+        return res.status(400).json({ error: 'Error al crear cuenta. Intenta nuevamente.' });
+      }
+
+      const userId = authData.user.id;
+
+      // Step B: Generate unique slug
+      let baseSlug = generateSlug(orgName.trim());
+      if (!baseSlug) baseSlug = 'org'; // Fallback if name only has special chars
+      let slug = baseSlug;
+      let slugSuffix = 1;
+
+      // Check for slug uniqueness using count instead of single()
+      while (slugSuffix < 100) { // Safety limit
+        const { count, error: slugCheckError } = await supabase
+          .from('organizations')
+          .select('id', { count: 'exact', head: true })
+          .eq('slug', slug);
+        
+        if (slugCheckError) {
+          console.error('Slug check error:', slugCheckError);
+          // Continue with current slug, let DB constraint catch it
+          break;
+        }
+        
+        if (!count || count === 0) break;
+        slug = `${baseSlug}-${slugSuffix}`;
+        slugSuffix++;
+      }
+
+      // Step C: Create organization
+      const { data: org, error: orgError } = await supabase
+        .from('organizations')
+        .insert({
+          name: orgName.trim(),
+          email: email.trim().toLowerCase(),
+          website: website?.trim() || null,
+          slug,
+          status: 'active',
+          verified: false,
+          country: 'Colombia', // Default
+          city: 'Bogotá', // Default
+        })
+        .select()
+        .single();
+
+      if (orgError || !org) {
+        console.error('Create org error:', orgError);
+        // Rollback: delete auth user
+        await supabase.auth.admin.deleteUser(userId);
+        return res.status(400).json({ error: 'Error al crear la organización. Intenta nuevamente.' });
+      }
+
+      // Step D: Link user to organization via organization_users
+      const { error: linkError } = await supabase
+        .from('organization_users')
+        .insert({
+          organization_id: org.id,
+          user_id: userId,
+          role: 'admin',
+        });
+
+      if (linkError) {
+        console.error('Link user to org error:', linkError);
+        // Critical error - rollback both org and auth user
+        await supabase.from('organizations').delete().eq('id', org.id);
+        await supabase.auth.admin.deleteUser(userId);
+        return res.status(400).json({ error: 'Error al configurar la cuenta. Intenta nuevamente.' });
+      }
+
+      // Step E: Upload logo if provided (non-critical, don't rollback on failure)
+      let logoUrl = null;
+      if (logoFile) {
+        try {
+          const fileExt = logoFile.originalname.split('.').pop() || 'png';
+          const filePath = `${org.id}/logo.${fileExt}`;
+
+          const { error: uploadError } = await supabase.storage
+            .from('org-logos')
+            .upload(filePath, logoFile.buffer, {
+              contentType: logoFile.mimetype,
+              upsert: true,
+            });
+
+          if (!uploadError) {
+            // Get public URL
+            const { data: urlData } = supabase.storage
+              .from('org-logos')
+              .getPublicUrl(filePath);
+            
+            logoUrl = urlData.publicUrl;
+
+            // Update org with logo_url
+            await supabase
+              .from('organizations')
+              .update({ logo_url: logoUrl })
+              .eq('id', org.id);
+          } else {
+            console.error('Logo upload error:', uploadError);
+            // Continue without logo - not critical
+          }
+        } catch (logoError) {
+          console.error('Logo processing error:', logoError);
+          // Continue without logo
+        }
+      }
+
+      res.status(201).json({
+        message: 'Organización registrada exitosamente',
+        organization: {
+          id: org.id,
+          name: org.name,
+          slug: org.slug,
+          logo_url: logoUrl,
+        },
+      });
+    } catch (error: any) {
+      console.error('Register org error:', error);
+      res.status(500).json({ error: 'Error al registrar la organización. Intenta nuevamente.' });
+    }
+  });
   
   // ============================================
   // Dashboard Stats
@@ -25,10 +222,12 @@ export async function registerRoutes(
     try {
       if (!req.organizationId) {
         return res.json({
-          totalDonations: 0,
-          totalRaised: 0,
-          activeCampaigns: 0,
-          totalDonors: 0,
+          data: {
+            totalDonations: 0,
+            totalRaised: 0,
+            activeCampaigns: 0,
+            totalDonors: 0,
+          },
         });
       }
 
@@ -59,10 +258,12 @@ export async function registerRoutes(
       const uniqueEmails = new Set(uniqueDonors?.map(d => d.donor_email));
 
       res.json({
-        totalDonations,
-        totalRaised: totalRaised / 100, // Convert from minor units
-        activeCampaigns: activeCampaigns || 0,
-        totalDonors: uniqueEmails.size,
+        data: {
+          totalDonations,
+          totalRaised: totalRaised / 100, // Convert from minor units
+          activeCampaigns: activeCampaigns || 0,
+          totalDonors: uniqueEmails.size,
+        },
       });
     } catch (error) {
       console.error('Dashboard stats error:', error);
@@ -89,7 +290,7 @@ export async function registerRoutes(
         return res.status(404).json({ error: 'Organización no encontrada' });
       }
 
-      res.json(data);
+      res.json({ data });
     } catch (error) {
       console.error('Get organization error:', error);
       res.status(500).json({ error: 'Error al obtener la organización' });
@@ -128,7 +329,7 @@ export async function registerRoutes(
         return res.status(400).json({ error: 'Error al actualizar la organización' });
       }
 
-      res.json(data);
+      res.json({ data });
     } catch (error) {
       console.error('Update organization error:', error);
       res.status(500).json({ error: 'Error al actualizar la organización' });
@@ -141,7 +342,7 @@ export async function registerRoutes(
   app.get('/api/campaigns', authMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
       if (!req.organizationId) {
-        return res.json([]);
+        return res.json({ data: [] });
       }
 
       const { data, error } = await supabase
@@ -155,7 +356,7 @@ export async function registerRoutes(
         return res.status(400).json({ error: 'Error al obtener campañas' });
       }
 
-      res.json(data || []);
+      res.json({ data: data || [] });
     } catch (error) {
       console.error('Get campaigns error:', error);
       res.status(500).json({ error: 'Error al obtener campañas' });
@@ -177,7 +378,7 @@ export async function registerRoutes(
         return res.status(404).json({ error: 'Campaña no encontrada' });
       }
 
-      res.json(data);
+      res.json({ data });
     } catch (error) {
       console.error('Get campaign error:', error);
       res.status(500).json({ error: 'Error al obtener la campaña' });
@@ -215,7 +416,7 @@ export async function registerRoutes(
         return res.status(400).json({ error: 'Error al crear la campaña' });
       }
 
-      res.status(201).json(data);
+      res.status(201).json({ data });
     } catch (error) {
       console.error('Create campaign error:', error);
       res.status(500).json({ error: 'Error al crear la campaña' });
@@ -249,7 +450,7 @@ export async function registerRoutes(
         return res.status(400).json({ error: 'Error al actualizar la campaña' });
       }
 
-      res.json(data);
+      res.json({ data });
     } catch (error) {
       console.error('Update campaign error:', error);
       res.status(500).json({ error: 'Error al actualizar la campaña' });
@@ -284,7 +485,7 @@ export async function registerRoutes(
   app.get('/api/donations', authMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
       if (!req.organizationId) {
-        return res.json([]);
+        return res.json({ data: [] });
       }
 
       const { campaign_id } = req.query;
@@ -306,7 +507,7 @@ export async function registerRoutes(
         return res.status(400).json({ error: 'Error al obtener donaciones' });
       }
 
-      res.json(data || []);
+      res.json({ data: data || [] });
     } catch (error) {
       console.error('Get donations error:', error);
       res.status(500).json({ error: 'Error al obtener donaciones' });
@@ -390,8 +591,10 @@ export async function registerRoutes(
       }
 
       res.json({
-        campaign,
-        organization: org,
+        data: {
+          campaign,
+          organization: org,
+        },
       });
     } catch (error) {
       console.error('Get public campaign error:', error);
@@ -445,7 +648,7 @@ export async function registerRoutes(
         return res.status(400).json({ error: 'Error al procesar la donación' });
       }
 
-      res.status(201).json(data);
+      res.status(201).json({ data });
     } catch (error) {
       console.error('Create donation error:', error);
       res.status(500).json({ error: 'Error al procesar la donación' });
