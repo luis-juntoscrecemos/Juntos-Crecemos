@@ -27,15 +27,15 @@ function formatDate(dateString: string): string {
 }
 
 export default function Dashboard() {
-  const { data: statsResponse, isLoading: statsLoading } = useQuery({
+  const { data: statsResponse, isLoading: statsLoading } = useQuery<{ data?: { totalDonations: number; totalRaised: number; activeCampaigns: number; totalDonors: number } }>({
     queryKey: ['/api/dashboard/stats'],
   });
 
-  const { data: campaignsResponse, isLoading: campaignsLoading } = useQuery({
+  const { data: campaignsResponse, isLoading: campaignsLoading } = useQuery<{ data?: CampaignWithTotals[] }>({
     queryKey: ['/api/campaigns'],
   });
 
-  const { data: donationsResponse, isLoading: donationsLoading } = useQuery({
+  const { data: donationsResponse, isLoading: donationsLoading } = useQuery<{ data?: Donation[] }>({
     queryKey: ['/api/donations'],
   });
 

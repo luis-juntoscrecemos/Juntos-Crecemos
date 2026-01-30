@@ -11,6 +11,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDes
 import { useToast } from '@/hooks/use-toast';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { AuthLogo } from '@/components/common/AuthLogo';
+import { useAuth } from '@/contexts/AuthContext';
 
 const MAX_FILE_SIZE = 2 * 1024 * 1024; // 2MB
 const ACCEPTED_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
@@ -37,6 +38,7 @@ export default function Register() {
   const [logoError, setLogoError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+  const { signIn } = useAuth();
 
   const form = useForm<RegisterFormData>({
     resolver: zodResolver(registerSchema),
@@ -112,9 +114,12 @@ export default function Register() {
 
       toast({
         title: 'Organización registrada',
-        description: 'Tu cuenta ha sido creada. Revisa tu correo para confirmar.',
+        description: 'Bienvenido a Juntos Crecemos',
       });
-      setLocation('/login');
+      
+      // Auto sign-in after registration
+      await signIn(data.email, data.password);
+      setLocation('/dashboard');
     } catch (error: any) {
       toast({
         variant: 'destructive',

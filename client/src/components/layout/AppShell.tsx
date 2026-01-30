@@ -1,4 +1,5 @@
 import { Link, useLocation } from 'wouter';
+import { useQuery } from '@tanstack/react-query';
 import { 
   LayoutDashboard, 
   Building2, 
@@ -11,7 +12,7 @@ import {
   Palette
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
   Sidebar,
   SidebarContent,
@@ -29,6 +30,8 @@ import {
 } from '@/components/ui/sidebar';
 import { useAuth } from '@/contexts/AuthContext';
 import { Separator } from '@/components/ui/separator';
+import juntosLogo from '@/assets/juntos-crecemos-logo.png';
+import type { Organization } from '@shared/schema';
 
 const mainNavItems = [
   { title: 'Panel', href: '/dashboard', icon: LayoutDashboard },
@@ -42,22 +45,31 @@ const secondaryNavItems = [
   { title: 'Configuración', href: '/settings', icon: Settings },
 ];
 
-function AppSidebar() {
+function AppSidebar({ organization }: { organization?: Organization | null }) {
   const [location] = useLocation();
   const { user, signOut } = useAuth();
 
   const userInitials = user?.email?.substring(0, 2).toUpperCase() || 'JC';
+  const orgName = organization?.name || 'Juntos Crecemos';
+  const orgLogo = organization?.logo_url;
 
   return (
     <Sidebar>
       <SidebarHeader className="p-4">
         <Link href="/dashboard">
           <div className="flex items-center gap-3 cursor-pointer">
-            <div className="w-10 h-10 rounded-md bg-primary flex items-center justify-center">
-              <span className="text-primary-foreground font-bold text-lg">JC</span>
-            </div>
+            {orgLogo ? (
+              <Avatar className="h-10 w-10 rounded-md">
+                <AvatarImage src={orgLogo} alt={orgName} className="object-cover" />
+                <AvatarFallback className="rounded-md bg-primary text-primary-foreground font-bold">
+                  {orgName.substring(0, 2).toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
+            ) : (
+              <img src={juntosLogo} alt="Juntos Crecemos" className="h-10 w-10 object-contain" />
+            )}
             <div className="flex flex-col">
-              <span className="font-semibold text-sm">Juntos Crecemos</span>
+              <span className="font-semibold text-sm">{orgName}</span>
               <span className="text-xs text-muted-foreground">Plataforma de Donaciones</span>
             </div>
           </div>
@@ -143,8 +155,9 @@ function TopBar() {
       <div className="flex items-center gap-2">
         <SidebarTrigger data-testid="button-sidebar-toggle" />
       </div>
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-3">
         <span className="text-sm text-muted-foreground">Bienvenido a Juntos Crecemos</span>
+        <img src={juntosLogo} alt="Juntos Crecemos" className="h-8 w-8 object-contain" />
       </div>
     </header>
   );
@@ -155,6 +168,12 @@ interface AppShellProps {
 }
 
 export function AppShell({ children }: AppShellProps) {
+  const { data: orgResponse } = useQuery<{ data?: Organization }>({
+    queryKey: ['/api/organizations/me'],
+  });
+  
+  const organization = orgResponse?.data;
+
   const sidebarStyle = {
     "--sidebar-width": "16rem",
     "--sidebar-width-icon": "3rem",
@@ -163,7 +182,7 @@ export function AppShell({ children }: AppShellProps) {
   return (
     <SidebarProvider style={sidebarStyle}>
       <div className="flex h-screen w-full">
-        <AppSidebar />
+        <AppSidebar organization={organization} />
         <div className="flex flex-col flex-1 overflow-hidden">
           <TopBar />
           <main className="flex-1 overflow-auto p-6 bg-background">
