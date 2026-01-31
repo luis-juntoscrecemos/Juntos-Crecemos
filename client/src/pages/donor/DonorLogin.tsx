@@ -33,6 +33,7 @@ export default function DonorLogin() {
   // Check if logged-in user needs to create donor account
   const { data: checkResponse, isLoading: checkLoading } = useQuery<{ data?: { isDonor: boolean } }>({
     queryKey: ['/api/donor/check'],
+    queryFn: () => donorApi.checkAccount(),
     enabled: !!user,
   });
 
@@ -47,14 +48,11 @@ export default function DonorLogin() {
 
   const registerMutation = useMutation({
     mutationFn: (fullName?: string) => donorApi.register(fullName),
-    onSuccess: (response) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/donor/check'] });
-      const claimedCount = (response as any).claimedDonations || 0;
       toast({
-        title: 'Cuenta de donante creada',
-        description: claimedCount > 0 
-          ? `Se vincularon ${claimedCount} donaciones a tu cuenta.`
-          : 'Ahora puedes ver tu historial de donaciones.',
+        title: 'Cuenta de donante creada!',
+        duration: 5000,
       });
       setLocation('/donor');
     },

@@ -7,6 +7,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { AppShell } from "@/components/layout/AppShell";
 import { LoadingPage } from "@/components/common/LoadingSpinner";
+import { donorApi } from "@/lib/donorApi";
 
 import NotFound from "@/pages/not-found";
 import Login from "@/pages/auth/Login";
@@ -96,6 +97,7 @@ function DonorProtectedRoute({ children }: { children: React.ReactNode }) {
 
   const { data: checkResponse, isLoading: checkLoading } = useQuery<{ data?: { isDonor: boolean; isOrgUser: boolean } }>({
     queryKey: ['/api/donor/check'],
+    queryFn: () => donorApi.checkAccount(),
     enabled: !!user,
   });
 

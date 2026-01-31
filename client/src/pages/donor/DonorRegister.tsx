@@ -60,8 +60,8 @@ export default function DonorRegister() {
     },
     onSuccess: () => {
       toast({
-        title: 'Cuenta creada exitosamente',
-        description: 'Ahora puedes ver tu historial de donaciones.',
+        title: 'Cuenta de donante creada!',
+        duration: 5000,
       });
       // Give time for auth state to fully propagate before redirect
       setTimeout(() => {

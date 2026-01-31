@@ -24,8 +24,8 @@ export default function NoDonorProfile() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/donor/check'] });
       toast({
-        title: 'Cuenta de donante creada',
-        description: 'Puedes vincular tus donaciones anteriores desde la configuración.',
+        title: 'Cuenta de donante creada!',
+        duration: 5000,
       });
       setLocation('/donor');
     },
