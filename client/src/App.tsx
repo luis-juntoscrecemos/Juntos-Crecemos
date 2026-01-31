@@ -20,6 +20,7 @@ import SettingsPage from "@/pages/Settings";
 import DonatePage from "@/pages/public/DonatePage";
 
 import DonorLogin from "@/pages/donor/DonorLogin";
+import DonorRegister from "@/pages/donor/DonorRegister";
 import DonorDashboard from "@/pages/donor/DonorDashboard";
 import DonorDonations from "@/pages/donor/DonorDonations";
 import DonorFavorites from "@/pages/donor/DonorFavorites";
@@ -183,6 +184,12 @@ function Router() {
       <Route path="/donor/login">
         <DonorAuthRoute>
           <DonorLogin />
+        </DonorAuthRoute>
+      </Route>
+
+      <Route path="/donor/register">
+        <DonorAuthRoute>
+          <DonorRegister />
         </DonorAuthRoute>
       </Route>
 

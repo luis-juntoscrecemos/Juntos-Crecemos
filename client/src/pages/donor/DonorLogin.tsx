@@ -251,13 +251,12 @@ export default function DonorLogin() {
               )}
             </Button>
             
-            <div className="text-center text-sm text-muted-foreground">
-              <p>¿No tienes cuenta?</p>
-              <p className="mt-1">
-                Realiza una donación y te invitaremos a crear tu cuenta para
-                ver tu historial.
-              </p>
-            </div>
+            <p className="text-sm text-muted-foreground text-center">
+              ¿No tienes cuenta?{' '}
+              <Link href="/donor/register" className="text-primary font-medium hover:underline" data-testid="link-donor-register">
+                Regístrate aquí
+              </Link>
+            </p>
 
             <div className="text-center text-sm border-t pt-4 w-full">
               <span className="text-muted-foreground">¿Eres una ONG? </span>

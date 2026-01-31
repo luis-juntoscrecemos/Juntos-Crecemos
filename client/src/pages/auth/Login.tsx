@@ -148,11 +148,17 @@ export default function Login() {
               </form>
             </Form>
 
-            <div className="mt-6 text-center">
+            <div className="mt-6 text-center space-y-2">
               <p className="text-sm text-muted-foreground">
                 ¿No tienes cuenta?{' '}
                 <Link href="/register" className="text-primary font-medium hover:underline">
                   Registra tu ONG
+                </Link>
+              </p>
+              <p className="text-sm text-muted-foreground">
+                ¿No tienes cuenta de donante?{' '}
+                <Link href="/donor/register" className="text-primary font-medium hover:underline" data-testid="link-donor-register">
+                  Regístrate aquí
                 </Link>
               </p>
             </div>
