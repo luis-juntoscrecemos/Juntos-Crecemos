@@ -707,16 +707,31 @@ export async function registerRoutes(
         return res.status(400).json({ error: 'Error al crear la cuenta de donante' });
       }
 
-      // Claim existing donations for this email
-      const claimedCount = await claimDonationsForDonor(donorAccount.id, req.userEmail);
-
       res.status(201).json({
         data: donorAccount,
-        claimedDonations: claimedCount,
       });
     } catch (error) {
       console.error('Donor register error:', error);
       res.status(500).json({ error: 'Error al crear la cuenta de donante' });
+    }
+  });
+
+  // Claim existing donations for donor (optional, user-initiated)
+  app.post('/api/donor/claim-donations', donorAuthMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      if (!req.donorAccountId || !req.userEmail) {
+        return res.status(401).json({ error: 'Cuenta de donante requerida' });
+      }
+
+      const claimedCount = await claimDonationsForDonor(req.donorAccountId, req.userEmail);
+
+      res.json({
+        success: true,
+        claimedDonations: claimedCount,
+      });
+    } catch (error) {
+      console.error('Claim donations error:', error);
+      res.status(500).json({ error: 'Error al vincular donaciones' });
     }
   });
 

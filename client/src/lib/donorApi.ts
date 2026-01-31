@@ -90,4 +90,9 @@ export const donorApi = {
   
   checkFavorite: (organizationId: string) =>
     apiRequest<{ isFavorited: boolean }>(`/donor/favorites/check/${organizationId}`),
+  
+  claimDonations: () =>
+    apiRequest<{ success: boolean; claimedDonations: number }>('/donor/claim-donations', {
+      method: 'POST',
+    }),
 };

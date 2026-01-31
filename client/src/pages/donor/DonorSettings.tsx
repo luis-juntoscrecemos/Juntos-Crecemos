@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
-import { Save, User, Mail, Shield } from 'lucide-react';
+import { Save, User, Mail, Shield, Link as LinkIcon } from 'lucide-react';
 import { donorApi } from '@/lib/donorApi';
 import type { DonorAccount } from '@shared/schema';
 
@@ -66,6 +66,28 @@ export default function DonorSettings() {
         variant: 'destructive',
         title: 'Error',
         description: 'No se pudo actualizar el perfil. Intenta de nuevo.',
+      });
+    },
+  });
+
+  const claimDonationsMutation = useMutation({
+    mutationFn: () => donorApi.claimDonations(),
+    onSuccess: (response) => {
+      const claimedCount = response.data?.claimedDonations || 0;
+      queryClient.invalidateQueries({ queryKey: ['/api/donor/stats'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/donor/donations'] });
+      toast({
+        title: claimedCount > 0 ? 'Donaciones vinculadas' : 'Sin donaciones nuevas',
+        description: claimedCount > 0 
+          ? `Se vincularon ${claimedCount} donaciones a tu cuenta.`
+          : 'No se encontraron donaciones anteriores para vincular.',
+      });
+    },
+    onError: () => {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'No se pudieron vincular las donaciones. Intenta de nuevo.',
       });
     },
   });
@@ -153,6 +175,41 @@ export default function DonorSettings() {
                   El correo electrónico no se puede cambiar ya que está vinculado a tu cuenta.
                 </p>
               </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <LinkIcon className="h-5 w-5" />
+                Vincular Donaciones
+              </CardTitle>
+              <CardDescription>
+                Conecta las donaciones que hayas realizado anteriormente
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Si realizaste donaciones antes de crear tu cuenta, puedes vincularlas aquí. 
+                Buscaremos todas las donaciones asociadas a tu correo electrónico.
+              </p>
+              <Button
+                onClick={() => claimDonationsMutation.mutate()}
+                disabled={claimDonationsMutation.isPending}
+                data-testid="button-claim-donations"
+              >
+                {claimDonationsMutation.isPending ? (
+                  <>
+                    <LoadingSpinner size="sm" className="mr-2" />
+                    Buscando donaciones...
+                  </>
+                ) : (
+                  <>
+                    <LinkIcon className="h-4 w-4 mr-2" />
+                    Vincular mis donaciones
+                  </>
+                )}
+              </Button>
             </CardContent>
           </Card>
 

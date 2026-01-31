@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'wouter';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -27,8 +27,16 @@ type RegisterFormData = z.infer<typeof registerSchema>;
 export default function DonorRegister() {
   const [, setLocation] = useLocation();
   const [showPassword, setShowPassword] = useState(false);
+  const [registrationComplete, setRegistrationComplete] = useState(false);
   const { toast } = useToast();
-  const { signUp, signIn } = useAuth();
+  const { signUp, signIn, user } = useAuth();
+
+  // Redirect to donor dashboard once auth state is ready after registration
+  useEffect(() => {
+    if (registrationComplete && user) {
+      setLocation('/donor');
+    }
+  }, [registrationComplete, user, setLocation]);
 
   const form = useForm<RegisterFormData>({
     resolver: zodResolver(registerSchema),
@@ -55,15 +63,12 @@ export default function DonorRegister() {
       const fullName = `${data.firstName} ${data.lastName}`.trim();
       return donorApi.register(fullName);
     },
-    onSuccess: (response) => {
-      const claimedCount = (response as any).claimedDonations || 0;
+    onSuccess: () => {
       toast({
         title: 'Cuenta creada exitosamente',
-        description: claimedCount > 0 
-          ? `Se vincularon ${claimedCount} donaciones a tu cuenta.`
-          : 'Ahora puedes ver tu historial de donaciones.',
+        description: 'Puedes vincular tus donaciones anteriores desde la configuración.',
       });
-      setLocation('/donor');
+      setRegistrationComplete(true);
     },
     onError: (error: any) => {
       toast({
@@ -202,7 +207,7 @@ export default function DonorRegister() {
 
               <div className="bg-muted p-3 rounded-lg">
                 <p className="text-xs text-muted-foreground">
-                  Al registrarte, vincularemos automáticamente todas las donaciones que hayas realizado con este correo electrónico.
+                  Después de registrarte, podrás vincular las donaciones que hayas realizado anteriormente con este correo electrónico desde tu panel de configuración.
                 </p>
               </div>
             </CardContent>
