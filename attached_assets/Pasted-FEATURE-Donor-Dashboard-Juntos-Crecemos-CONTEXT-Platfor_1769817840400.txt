@@ -1,0 +1,135 @@
+FEATURE: Donor Dashboard (Juntos Crecemos)
+
+CONTEXT
+- Platform: Juntos Crecemos (NGO donation SaaS for South America).
+- Styling: Tailwind + shadcn/ui with CSS variables theme in client/src/index.css.
+- Database: Supabase Postgres with RLS enabled.
+- Auth: Supabase Auth is already used for org signup/login.
+
+HIGH-LEVEL REQUIREMENTS
+1) Donor dashboard is ONLY for users who donated first AND then created an account after donating.
+2) Donor dashboard must show:
+   - Donation history (list + details)
+   - Analytics dashboard (charts + summary KPIs)
+   - Favorited organizations screen
+3) Every donation is stored in `donations`.
+4) Every donor account is stored in `donors`.
+
+CRITICAL PRODUCT RULE (DONATE FIRST)
+Donors do NOT create accounts before donating.
+After a successful donation, show a CTA:
+  "Crea tu cuenta para ver tu historial de donaciones"
+Account creation must “claim” the donation(s) made by that email.
+
+SECURITY (EMAIL CLAIMING)
+- Donor account creation must require verified email (magic link or email OTP) OR standard email+password with email verification.
+- Only after email verification, attach donations that match the donor’s email.
+
+DATA MODEL (SUPABASE TABLES)
+A) donors table:
+- id (uuid pk default gen_random_uuid())
+- auth_user_id (uuid unique references auth.users.id)  // link to Supabase Auth
+- email (text unique not null)
+- full_name (text nullable)
+- created_at (timestamp default now())
+
+B) donations table (ensure these fields exist):
+- id (uuid pk)
+- organization_id (uuid references organizations.id)
+- campaign_id (uuid nullable)
+- amount (numeric or int cents)
+- currency (text, default 'COP')
+- donor_email (text not null)  // email provided at donation time
+- donor_id (uuid nullable references donors.id) // to be set after donor claims account
+- created_at (timestamp default now())
+- status (text, e.g., 'succeeded', 'failed', 'refunded')
+- payment_provider (text nullable)
+- payment_reference (text nullable)
+
+C) favorites table (new):
+- donor_id (uuid references donors.id)
+- organization_id (uuid references organizations.id)
+- created_at (timestamp default now())
+Primary key: (donor_id, organization_id)
+
+If any columns don’t exist, provide SQL migrations to add them safely.
+
+CLAIMING FLOW (AFTER DONATION)
+1) Donation confirmation page includes CTA: “Crear cuenta para ver tus donaciones”.
+2) Account creation uses the SAME email as the donation (prefill + lock email field).
+3) After auth signup + email verification:
+   - create donors row (auth_user_id, email, full_name)
+   - backfill donations:
+     UPDATE donations
+     SET donor_id = donors.id
+     WHERE donations.donor_email = donors.email
+       AND donations.donor_id IS NULL
+       AND donations.status = 'succeeded';
+
+IMPORTANT: do NOT backfill until email is verified.
+
+ROUTING / ACCESS CONTROL
+- Create routes:
+  /donor (dashboard overview)
+  /donor/donations
+  /donor/favorites
+  /donor/settings
+- Route guard:
+  - Must be authenticated
+  - Must have a donors row linked to auth_user_id
+  - If authenticated but not a donor -> redirect to a page explaining “No donor profile yet” with link back to donation flow.
+
+DASHBOARD UI (shadcn/ui)
+A) Overview (/donor)
+- KPI cards:
+  - Total donated (sum succeeded)
+  - # of donations
+  - # of organizations supported (distinct organization_id)
+  - Last donation date
+- Chart:
+  - Donations over time (monthly or weekly)
+  - Optional: breakdown by organization (top 5)
+B) Donations list (/donor/donations)
+- Table with: date, org, campaign, amount, currency, status
+- Filters: date range, status, org
+- Donation detail modal or page
+C) Favorites (/donor/favorites)
+- Card grid of favorited organizations with logo/name + CTA: “Donar de nuevo”
+- Ability to favorite/unfavorite organizations from org public pages
+D) Settings (/donor/settings)
+- Update display name
+- (Optional) Email is read-only (from auth)
+
+FAVORITING BEHAVIOR
+- Add a “favorite” action on organization public profile and campaign pages:
+  - Heart icon toggle
+  - Uses favorites table (upsert/delete)
+- Favorites are only available to authenticated donors (not org accounts).
+
+ACCOUNT TYPE DISAMBIGUATION (IMPORTANT)
+We have org accounts and donor accounts in the same Supabase Auth system.
+Implement a simple role strategy:
+- donors table indicates donor accounts
+- organizations/organization_users indicates org accounts
+A user might be one or the other; prevent donors from accessing org dashboard and orgs from accessing donor dashboard.
+
+RLS POLICIES (MUST IMPLEMENT)
+1) donors:
+- donors can select/update their own row where auth_user_id = auth.uid()
+- donors can insert their row only with auth_user_id = auth.uid()
+
+2) donations:
+- donors can select donations where donor_id belongs to them OR donor_email matches their verified email AND donor_id is set to them after claim
+- donors cannot update donation amounts/status
+- only backend/service role can insert donations (if payments handled server-side)
+
+3) favorites:
+- donors can select/insert/delete only their own favorites
+
+Provide SQL policies for all tables.
+
+DELIVERABLES
+- Implement frontend pages/components + route guards.
+- Implement Supabase SQL migrations + RLS policies.
+- Ensure the “claim donations after donation” flow works end-to-end.
+- List files changed and where the donor dashboard is located.
