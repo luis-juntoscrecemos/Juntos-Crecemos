@@ -51,3 +51,33 @@ export async function getUserOrganization(userId: string) {
     organization: data.organizations,
   };
 }
+
+// Get user's donor account
+export async function getDonorAccount(userId: string) {
+  const { data, error } = await supabase
+    .from('donor_accounts')
+    .select('*')
+    .eq('auth_user_id', userId)
+    .single();
+
+  if (error || !data) {
+    return null;
+  }
+
+  return data;
+}
+
+// Claim donations for a verified donor account
+export async function claimDonationsForDonor(donorAccountId: string, email: string): Promise<number> {
+  const { data, error } = await supabase.rpc('claim_donations_for_donor', {
+    p_donor_account_id: donorAccountId,
+    p_email: email
+  });
+
+  if (error) {
+    console.error('Error claiming donations:', error);
+    return 0;
+  }
+
+  return data || 0;
+}

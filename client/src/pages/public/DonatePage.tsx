@@ -39,7 +39,7 @@ function formatCurrency(amount: number, currency: string = 'COP'): string {
 interface DonationFormProps {
   campaign: CampaignWithTotals;
   organization: Organization;
-  onSuccess: () => void;
+  onSuccess: (email?: string) => void;
 }
 
 function DonationForm({ campaign, organization, onSuccess }: DonationFormProps) {
@@ -71,8 +71,8 @@ function DonationForm({ campaign, organization, onSuccess }: DonationFormProps) 
         is_recurring: data.is_recurring,
         is_anonymous: data.is_anonymous,
       }),
-    onSuccess: () => {
-      onSuccess();
+    onSuccess: (_, variables) => {
+      onSuccess(variables.donor_email || undefined);
     },
   });
 
@@ -254,9 +254,17 @@ function DonationForm({ campaign, organization, onSuccess }: DonationFormProps) 
   );
 }
 
-function SuccessScreen({ campaign, organization }: { campaign: CampaignWithTotals; organization: Organization }) {
+function SuccessScreen({ 
+  campaign, 
+  organization, 
+  donorEmail 
+}: { 
+  campaign: CampaignWithTotals; 
+  organization: Organization;
+  donorEmail?: string;
+}) {
   return (
-    <div className="text-center py-12 space-y-6">
+    <div className="text-center py-8 space-y-6">
       <div className="w-20 h-20 rounded-full bg-success/10 flex items-center justify-center mx-auto">
         <CheckCircle className="w-10 h-10 text-success" />
       </div>
@@ -271,6 +279,27 @@ function SuccessScreen({ campaign, organization }: { campaign: CampaignWithTotal
           Recibirás un correo de confirmación con los detalles de tu donación.
         </p>
       </div>
+      
+      <Separator className="my-4" />
+      
+      <div className="bg-primary/5 border border-primary/20 rounded-lg p-4 max-w-sm mx-auto">
+        <Heart className="w-8 h-8 text-primary mx-auto mb-2" />
+        <h3 className="font-semibold text-sm">Crea tu cuenta de donante</h3>
+        <p className="text-xs text-muted-foreground mt-1 mb-3">
+          Accede a tu historial de donaciones y organizaciones favoritas
+        </p>
+        <Button 
+          asChild 
+          className="w-full"
+          data-testid="button-create-donor-account"
+        >
+          <a href={`/donor/login${donorEmail ? `?email=${encodeURIComponent(donorEmail)}` : ''}`}>
+            <Heart className="w-4 h-4 mr-2" />
+            Ver mi historial de donaciones
+          </a>
+        </Button>
+      </div>
+      
       <Button 
         variant="outline" 
         onClick={() => window.location.reload()}
@@ -285,6 +314,7 @@ function SuccessScreen({ campaign, organization }: { campaign: CampaignWithTotal
 export default function DonatePage() {
   const [, params] = useRoute('/donar/:orgSlug/:campaignSlug');
   const [showSuccess, setShowSuccess] = useState(false);
+  const [donorEmail, setDonorEmail] = useState<string | undefined>();
 
   const orgSlug = params?.orgSlug || '';
   const campaignSlug = params?.campaignSlug || '';
@@ -416,12 +446,15 @@ export default function DonatePage() {
               </CardHeader>
               <CardContent>
                 {showSuccess ? (
-                  <SuccessScreen campaign={campaign} organization={organization} />
+                  <SuccessScreen campaign={campaign} organization={organization} donorEmail={donorEmail} />
                 ) : (
                   <DonationForm 
                     campaign={campaign} 
                     organization={organization}
-                    onSuccess={() => setShowSuccess(true)}
+                    onSuccess={(email) => {
+                      setDonorEmail(email);
+                      setShowSuccess(true);
+                    }}
                   />
                 )}
               </CardContent>

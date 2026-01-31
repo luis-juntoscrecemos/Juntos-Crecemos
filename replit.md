@@ -25,21 +25,25 @@ client/
 ├── src/
 │   ├── components/       # Reusable UI components
 │   │   ├── common/       # EmptyState, PageHeader, StatsCard, LoadingSpinner
-│   │   ├── layout/       # AppShell with sidebar
+│   │   ├── layout/       # AppShell (org), DonorShell (donor) with sidebars
 │   │   └── ui/           # shadcn/ui base components
 │   ├── contexts/         # AuthContext for Supabase auth state
 │   ├── hooks/            # Custom React hooks
-│   ├── lib/              # API client, Supabase client, utilities
+│   ├── lib/              # API client, donorApi, Supabase client, utilities
 │   └── pages/            # Route pages
-│       ├── auth/         # Login, Register
+│       ├── auth/         # Login, Register (for orgs)
+│       ├── donor/        # DonorDashboard, DonorDonations, DonorFavorites, DonorSettings, DonorLogin
 │       └── public/       # DonatePage (public donation form)
 server/
-├── middleware/           # Auth middleware for JWT validation
-├── routes.ts             # API routes
-├── supabase.ts           # Supabase server client
+├── middleware/           # Auth middleware (authMiddleware, donorAuthMiddleware)
+├── routes.ts             # API routes (org + donor endpoints)
+├── supabase.ts           # Supabase server client + helper functions
 └── index.ts              # Express server setup
 shared/
-└── schema.ts             # TypeScript types matching Supabase schema
+└── schema.ts             # TypeScript types (includes DonorAccount, Favorite, DonorDashboardStats)
+docs/
+├── supabase-setup.sql    # Initial Supabase setup (storage, orgs RLS)
+└── donor-dashboard-setup.sql  # Donor tables, RLS policies, claim function
 ```
 
 ## Database Schema (Supabase)
@@ -48,7 +52,9 @@ Core tables:
 - **organization_users**: Links auth users to organizations (user_id, organization_id, role)
 - **campaigns**: Fundraising campaigns (title, slug, description, goal_amount, is_active)
 - **campaigns_with_totals**: View with raised_minor and donations_count
-- **donations**: Individual donations (amount_minor, currency, status, donor_name, donor_email, is_recurring, is_anonymous)
+- **donations**: Individual donations (amount_minor, currency, status, donor_name, donor_email, is_recurring, is_anonymous, donor_account_id)
+- **donor_accounts**: Donor user accounts linked to auth.users (auth_user_id, email, full_name, email_verified)
+- **favorites**: Donor's favorite organizations (donor_account_id, organization_id)
 
 ## Environment Variables (Secrets)
 - `SUPABASE_URL`: Supabase project URL
@@ -72,8 +78,22 @@ Note: Frontend receives Supabase config via `/api/config` endpoint to avoid need
 
 ### Public (no auth)
 - `GET /api/public/campaigns/:orgSlug/:campaignSlug` - Get public campaign + organization
+- `GET /api/public/organizations/:slug` - Get public organization profile with active campaigns
 - `POST /api/public/donations` - Create donation (for public donation form)
 - `POST /api/auth/register-org` - Register new organization (multipart form with logo upload)
+
+### Donor Dashboard (requires donor auth)
+- `GET /api/donor/check` - Check if user has donor account
+- `POST /api/donor/register` - Create donor account and claim existing donations
+- `GET /api/donor/stats` - Donor dashboard statistics
+- `GET /api/donor/donations` - List donor's donations with org/campaign info
+- `GET /api/donor/donations/by-month` - Donations grouped by month (for charts)
+- `GET /api/donor/profile` - Get donor profile
+- `PATCH /api/donor/profile` - Update donor profile (full_name)
+- `GET /api/donor/favorites` - List favorite organizations
+- `POST /api/donor/favorites` - Add favorite organization
+- `DELETE /api/donor/favorites/:organizationId` - Remove favorite
+- `GET /api/donor/favorites/check/:organizationId` - Check if org is favorited
 
 ## Running the App
 The app runs via the "Start application" workflow which executes `npm run dev`. This starts both the Express backend and Vite frontend dev server.
@@ -107,3 +127,28 @@ The app runs via the "Start application" workflow which executes `npm run dev`. 
 - Light mode first design
 - Mobile-first responsive layouts
 - Trust-focused UX for donation flows
+
+## Donor Dashboard Feature
+The platform supports two types of users:
+1. **NGO Admins**: Manage organizations, campaigns, and view donations (routes: /dashboard, /organization, /campaigns, /donations)
+2. **Donors**: View donation history and manage favorites (routes: /donor, /donor/donations, /donor/favorites, /donor/settings)
+
+### Donor Flow
+1. Donor makes a donation on public campaign page (/donar/:orgSlug/:campaignSlug)
+2. After successful donation, sees CTA to create donor account
+3. Donor logs in/registers at /donor/login
+4. System creates donor_account and claims all donations matching email
+5. Donor can view history, stats, and manage favorite organizations
+
+### Account Disambiguation
+- `/api/donor/check` returns `isDonor` and `isOrgUser` flags
+- DonorProtectedRoute shows NoDonorProfile page if user has no donor account
+- Users can be both org admins and donors simultaneously
+
+### SQL Setup Required
+Run `docs/donor-dashboard-setup.sql` in Supabase Dashboard to create:
+- donor_accounts table
+- favorites table
+- Add donor_account_id column to donations
+- RLS policies for donor access
+- claim_donations_for_donor() function

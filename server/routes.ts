@@ -1,7 +1,7 @@
 import type { Express, Request } from "express";
 import { createServer, type Server } from "http";
-import { supabase } from "./supabase";
-import { authMiddleware, optionalAuthMiddleware, type AuthenticatedRequest } from "./middleware/auth";
+import { supabase, claimDonationsForDonor } from "./supabase";
+import { authMiddleware, optionalAuthMiddleware, donorAuthMiddleware, type AuthenticatedRequest } from "./middleware/auth";
 import multer, { FileFilterCallback } from "multer";
 
 // Configure multer for file uploads
@@ -652,6 +652,348 @@ export async function registerRoutes(
     } catch (error) {
       console.error('Create donation error:', error);
       res.status(500).json({ error: 'Error al procesar la donación' });
+    }
+  });
+
+  // ============================================
+  // Donor Dashboard API
+  // ============================================
+
+  // Check if authenticated user has a donor account
+  app.get('/api/donor/check', authMiddleware, async (req: AuthenticatedRequest, res) => {
+    res.json({
+      data: {
+        isDonor: !!req.donorAccountId,
+        isOrgUser: !!req.organizationId,
+        donorAccountId: req.donorAccountId || null,
+      }
+    });
+  });
+
+  // Create donor account (after donation with email verification)
+  app.post('/api/donor/register', authMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      if (!req.userId || !req.userEmail) {
+        return res.status(401).json({ error: 'Usuario no autenticado' });
+      }
+
+      // Check if already has donor account
+      const { data: existingDonor } = await supabase
+        .from('donor_accounts')
+        .select('id')
+        .eq('auth_user_id', req.userId)
+        .single();
+
+      if (existingDonor) {
+        return res.status(400).json({ error: 'Ya tienes una cuenta de donante' });
+      }
+
+      const { full_name } = req.body;
+
+      // Create donor account
+      const { data: donorAccount, error } = await supabase
+        .from('donor_accounts')
+        .insert({
+          auth_user_id: req.userId,
+          email: req.userEmail,
+          full_name: full_name || null,
+          email_verified: true, // Supabase auth already verified
+        })
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Create donor account error:', error);
+        return res.status(400).json({ error: 'Error al crear la cuenta de donante' });
+      }
+
+      // Claim existing donations for this email
+      const claimedCount = await claimDonationsForDonor(donorAccount.id, req.userEmail);
+
+      res.status(201).json({
+        data: donorAccount,
+        claimedDonations: claimedCount,
+      });
+    } catch (error) {
+      console.error('Donor register error:', error);
+      res.status(500).json({ error: 'Error al crear la cuenta de donante' });
+    }
+  });
+
+  // Get donor dashboard stats
+  app.get('/api/donor/stats', donorAuthMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      // Get all donations for this donor
+      const { data: donations } = await supabase
+        .from('donations')
+        .select('amount_minor, org_id, created_at')
+        .eq('donor_account_id', req.donorAccountId)
+        .eq('status', 'succeeded');
+
+      const donationsList = donations || [];
+      const totalDonated = donationsList.reduce((sum, d) => sum + (d.amount_minor || 0), 0);
+      const uniqueOrgs = new Set(donationsList.map(d => d.org_id));
+      const lastDonation = donationsList.length > 0 
+        ? donationsList.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0].created_at
+        : null;
+
+      res.json({
+        data: {
+          totalDonated: totalDonated / 100,
+          donationsCount: donationsList.length,
+          organizationsSupported: uniqueOrgs.size,
+          lastDonationDate: lastDonation,
+        }
+      });
+    } catch (error) {
+      console.error('Donor stats error:', error);
+      res.status(500).json({ error: 'Error al obtener estadísticas' });
+    }
+  });
+
+  // Get donor's donations list
+  app.get('/api/donor/donations', donorAuthMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { data, error } = await supabase
+        .from('donations')
+        .select(`
+          *,
+          organizations:org_id(name, logo_url),
+          campaigns:campaign_id(title)
+        `)
+        .eq('donor_account_id', req.donorAccountId)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Get donor donations error:', error);
+        return res.status(400).json({ error: 'Error al obtener donaciones' });
+      }
+
+      // Transform data to include org/campaign info
+      const donations = (data || []).map(d => ({
+        ...d,
+        organization_name: (d.organizations as any)?.name,
+        organization_logo_url: (d.organizations as any)?.logo_url,
+        campaign_title: (d.campaigns as any)?.title,
+      }));
+
+      res.json({ data: donations });
+    } catch (error) {
+      console.error('Donor donations error:', error);
+      res.status(500).json({ error: 'Error al obtener donaciones' });
+    }
+  });
+
+  // Get donor profile
+  app.get('/api/donor/profile', donorAuthMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { data, error } = await supabase
+        .from('donor_accounts')
+        .select('*')
+        .eq('id', req.donorAccountId)
+        .single();
+
+      if (error || !data) {
+        return res.status(404).json({ error: 'Perfil no encontrado' });
+      }
+
+      res.json({ data });
+    } catch (error) {
+      console.error('Get donor profile error:', error);
+      res.status(500).json({ error: 'Error al obtener perfil' });
+    }
+  });
+
+  // Update donor profile
+  app.patch('/api/donor/profile', donorAuthMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { full_name } = req.body;
+
+      const { data, error } = await supabase
+        .from('donor_accounts')
+        .update({ full_name })
+        .eq('id', req.donorAccountId)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Update donor profile error:', error);
+        return res.status(400).json({ error: 'Error al actualizar perfil' });
+      }
+
+      res.json({ data });
+    } catch (error) {
+      console.error('Update donor profile error:', error);
+      res.status(500).json({ error: 'Error al actualizar perfil' });
+    }
+  });
+
+  // Get donor's favorites
+  app.get('/api/donor/favorites', donorAuthMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { data, error } = await supabase
+        .from('favorites')
+        .select(`
+          *,
+          organizations:organization_id(id, name, logo_url, slug, description)
+        `)
+        .eq('donor_account_id', req.donorAccountId)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Get favorites error:', error);
+        return res.status(400).json({ error: 'Error al obtener favoritos' });
+      }
+
+      res.json({ data: data || [] });
+    } catch (error) {
+      console.error('Get favorites error:', error);
+      res.status(500).json({ error: 'Error al obtener favoritos' });
+    }
+  });
+
+  // Add favorite organization
+  app.post('/api/donor/favorites', donorAuthMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { organization_id } = req.body;
+
+      if (!organization_id) {
+        return res.status(400).json({ error: 'organization_id requerido' });
+      }
+
+      const { data, error } = await supabase
+        .from('favorites')
+        .upsert({
+          donor_account_id: req.donorAccountId,
+          organization_id,
+        }, { 
+          onConflict: 'donor_account_id,organization_id' 
+        })
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Add favorite error:', error);
+        return res.status(400).json({ error: 'Error al agregar favorito' });
+      }
+
+      res.status(201).json({ data });
+    } catch (error) {
+      console.error('Add favorite error:', error);
+      res.status(500).json({ error: 'Error al agregar favorito' });
+    }
+  });
+
+  // Remove favorite organization
+  app.delete('/api/donor/favorites/:organizationId', donorAuthMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { organizationId } = req.params;
+
+      const { error } = await supabase
+        .from('favorites')
+        .delete()
+        .eq('donor_account_id', req.donorAccountId)
+        .eq('organization_id', organizationId);
+
+      if (error) {
+        console.error('Remove favorite error:', error);
+        return res.status(400).json({ error: 'Error al eliminar favorito' });
+      }
+
+      res.status(204).send();
+    } catch (error) {
+      console.error('Remove favorite error:', error);
+      res.status(500).json({ error: 'Error al eliminar favorito' });
+    }
+  });
+
+  // Check if org is favorited
+  app.get('/api/donor/favorites/check/:organizationId', donorAuthMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { organizationId } = req.params;
+
+      const { data, error } = await supabase
+        .from('favorites')
+        .select('donor_account_id')
+        .eq('donor_account_id', req.donorAccountId)
+        .eq('organization_id', organizationId)
+        .single();
+
+      res.json({ data: { isFavorited: !!data } });
+    } catch (error) {
+      res.json({ data: { isFavorited: false } });
+    }
+  });
+
+  // Get public organization profile (for donors)
+  app.get('/api/public/organizations/:slug', async (req, res) => {
+    try {
+      const { slug } = req.params;
+
+      const { data: org, error } = await supabase
+        .from('organizations')
+        .select('id, name, slug, logo_url, description, website, verified')
+        .eq('slug', slug)
+        .eq('status', 'active')
+        .single();
+
+      if (error || !org) {
+        return res.status(404).json({ error: 'Organización no encontrada' });
+      }
+
+      // Get active campaigns
+      const { data: campaigns } = await supabase
+        .from('campaigns_with_totals')
+        .select('*')
+        .eq('org_id', org.id)
+        .eq('is_active', true)
+        .order('created_at', { ascending: false });
+
+      res.json({
+        data: {
+          organization: org,
+          campaigns: campaigns || [],
+        }
+      });
+    } catch (error) {
+      console.error('Get public org error:', error);
+      res.status(500).json({ error: 'Error al obtener organización' });
+    }
+  });
+
+  // Donor donation history by month (for charts)
+  app.get('/api/donor/donations/by-month', donorAuthMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { data, error } = await supabase
+        .from('donations')
+        .select('amount_minor, created_at')
+        .eq('donor_account_id', req.donorAccountId)
+        .eq('status', 'succeeded')
+        .order('created_at', { ascending: true });
+
+      if (error) {
+        console.error('Get donations by month error:', error);
+        return res.status(400).json({ error: 'Error al obtener datos' });
+      }
+
+      // Group by month
+      const monthlyData: Record<string, number> = {};
+      (data || []).forEach(d => {
+        const date = new Date(d.created_at);
+        const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+        monthlyData[key] = (monthlyData[key] || 0) + (d.amount_minor || 0);
+      });
+
+      // Convert to array format for charts
+      const chartData = Object.entries(monthlyData).map(([month, amount]) => ({
+        month,
+        amount: amount / 100,
+      }));
+
+      res.json({ data: chartData });
+    } catch (error) {
+      console.error('Donations by month error:', error);
+      res.status(500).json({ error: 'Error al obtener datos' });
     }
   });
 

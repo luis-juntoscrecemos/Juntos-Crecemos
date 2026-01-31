@@ -84,6 +84,7 @@ export interface Donation {
   campaign_id: string;
   org_id: string;
   donor_id: string | null;
+  donor_account_id: string | null; // Link to donor_accounts for claimed donations
   amount_minor: number;
   currency: string;
   status: string;
@@ -120,7 +121,7 @@ export const insertDonationSchema = z.object({
 
 export type InsertDonation = z.infer<typeof insertDonationSchema>;
 
-// Donors
+// Donors (legacy org-specific records)
 export interface Donor {
   id: string;
   org_id: string;
@@ -129,6 +130,44 @@ export interface Donor {
   phone_e164: string | null;
   created_at: string;
   updated_at: string;
+}
+
+// Donor Accounts (for donor dashboard - linked to auth.users)
+export interface DonorAccount {
+  id: string;
+  auth_user_id: string;
+  email: string;
+  full_name: string | null;
+  created_at: string;
+  email_verified: boolean;
+}
+
+export const insertDonorAccountSchema = z.object({
+  full_name: z.string().min(2, "El nombre debe tener al menos 2 caracteres").nullable().optional(),
+});
+
+export type InsertDonorAccount = z.infer<typeof insertDonorAccountSchema>;
+
+// Favorites (donor's favorite organizations)
+export interface Favorite {
+  donor_account_id: string;
+  organization_id: string;
+  created_at: string;
+}
+
+// Donor Dashboard Stats
+export interface DonorDashboardStats {
+  totalDonated: number;
+  donationsCount: number;
+  organizationsSupported: number;
+  lastDonationDate: string | null;
+}
+
+// Donation with Organization info (for donor dashboard)
+export interface DonationWithOrg extends Donation {
+  organization_name?: string;
+  organization_logo_url?: string | null;
+  campaign_title?: string | null;
 }
 
 // Causes (legacy/additional entity)
