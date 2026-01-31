@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Link, useLocation } from 'wouter';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -27,16 +27,8 @@ type RegisterFormData = z.infer<typeof registerSchema>;
 export default function DonorRegister() {
   const [, setLocation] = useLocation();
   const [showPassword, setShowPassword] = useState(false);
-  const [registrationComplete, setRegistrationComplete] = useState(false);
   const { toast } = useToast();
-  const { signUp, signIn, user } = useAuth();
-
-  // Redirect to donor dashboard once auth state is ready after registration
-  useEffect(() => {
-    if (registrationComplete && user) {
-      setLocation('/donor');
-    }
-  }, [registrationComplete, user, setLocation]);
+  const { signUp, signIn } = useAuth();
 
   const form = useForm<RegisterFormData>({
     resolver: zodResolver(registerSchema),
@@ -60,15 +52,21 @@ export default function DonorRegister() {
         throw signInError;
       }
 
+      // Wait for auth state to propagate
+      await new Promise(resolve => setTimeout(resolve, 500));
+
       const fullName = `${data.firstName} ${data.lastName}`.trim();
       return donorApi.register(fullName);
     },
     onSuccess: () => {
       toast({
         title: 'Cuenta creada exitosamente',
-        description: 'Puedes vincular tus donaciones anteriores desde la configuración.',
+        description: 'Ahora puedes ver tu historial de donaciones.',
       });
-      setRegistrationComplete(true);
+      // Give time for auth state to fully propagate before redirect
+      setTimeout(() => {
+        setLocation('/donor');
+      }, 300);
     },
     onError: (error: any) => {
       toast({
@@ -205,11 +203,6 @@ export default function DonorRegister() {
                 )}
               />
 
-              <div className="bg-muted p-3 rounded-lg">
-                <p className="text-xs text-muted-foreground">
-                  Después de registrarte, podrás vincular las donaciones que hayas realizado anteriormente con este correo electrónico desde tu panel de configuración.
-                </p>
-              </div>
             </CardContent>
 
             <CardFooter className="flex flex-col gap-4">

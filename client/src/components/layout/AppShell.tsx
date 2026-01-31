@@ -149,15 +149,27 @@ function AppSidebar({ organization }: { organization?: Organization | null }) {
   );
 }
 
-function TopBar() {
+function TopBar({ organization }: { organization?: Organization | null }) {
+  const orgName = organization?.name || 'Juntos Crecemos';
+  const orgLogo = organization?.logo_url;
+  
   return (
     <header className="h-14 border-b bg-card flex items-center justify-between px-4 gap-4">
       <div className="flex items-center gap-2">
         <SidebarTrigger data-testid="button-sidebar-toggle" />
       </div>
       <div className="flex items-center gap-3">
-        <span className="text-sm text-muted-foreground">Bienvenido a Juntos Crecemos</span>
-        <img src={juntosLogo} alt="Juntos Crecemos" className="h-8 w-8 object-contain" />
+        <span className="text-sm text-muted-foreground">Bienvenido a {orgName}</span>
+        {orgLogo ? (
+          <Avatar className="h-8 w-8 rounded-md">
+            <AvatarImage src={orgLogo} alt={orgName} className="object-cover" />
+            <AvatarFallback className="rounded-md bg-primary text-primary-foreground font-bold text-xs">
+              {orgName.substring(0, 2).toUpperCase()}
+            </AvatarFallback>
+          </Avatar>
+        ) : (
+          <img src={juntosLogo} alt="Juntos Crecemos" className="h-8 w-8 object-contain" />
+        )}
       </div>
     </header>
   );
@@ -184,7 +196,7 @@ export function AppShell({ children }: AppShellProps) {
       <div className="flex h-screen w-full">
         <AppSidebar organization={organization} />
         <div className="flex flex-col flex-1 overflow-hidden">
-          <TopBar />
+          <TopBar organization={organization} />
           <main className="flex-1 overflow-auto p-6 bg-background">
             <div className="max-w-6xl mx-auto">
               {children}
