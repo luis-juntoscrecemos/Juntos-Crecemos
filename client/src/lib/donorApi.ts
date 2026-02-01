@@ -30,13 +30,15 @@ async function apiRequest<T>(
       headers,
     });
 
-    const data = await response.json();
+    const responseData = await response.json();
 
     if (!response.ok) {
-      return { error: data.error || 'Error en la solicitud' };
+      return { error: responseData.error || 'Error en la solicitud' };
     }
 
-    return { data };
+    // Server returns { data: ... }, so we return the raw response
+    // This avoids double-wrapping as { data: { data: ... } }
+    return responseData;
   } catch (error) {
     return { error: 'Error de conexión' };
   }

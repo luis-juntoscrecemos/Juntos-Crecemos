@@ -201,11 +201,12 @@ export default function DonorLogin() {
 
             <div className="space-y-2">
               <Label htmlFor="password">Contraseña</Label>
-              <div className="relative">
+              <div className="relative flex items-center">
                 <Input
                   id="password"
                   type={showPassword ? 'text' : 'password'}
                   placeholder="••••••••"
+                  className="pr-10"
                   {...form.register('password')}
                   data-testid="input-password"
                 />
@@ -213,7 +214,7 @@ export default function DonorLogin() {
                   type="button"
                   variant="ghost"
                   size="icon"
-                  className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                  className="absolute right-0 h-full w-10 hover:bg-transparent"
                   onClick={() => setShowPassword(!showPassword)}
                   data-testid="button-toggle-password"
                 >
