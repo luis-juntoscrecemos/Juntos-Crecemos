@@ -186,10 +186,12 @@ export async function registerRoutes(
             logoUrl = urlData.publicUrl;
 
             // Update org with logo_url
-            await supabase
+            const { error: updateError } = await supabase
               .from('organizations')
               .update({ logo_url: logoUrl })
               .eq('id', org.id);
+            
+            if (updateError) console.error('Error updating org logo URL:', updateError);
           } else {
             console.error('Logo upload error:', uploadError);
             // Continue without logo - not critical
@@ -451,9 +453,9 @@ export async function registerRoutes(
   app.patch('/api/campaigns/:id', authMiddleware, upload.single('image'), async (req: AuthenticatedRequest & { file?: Express.Multer.File }, res) => {
     try {
       const { id } = req.params;
-      const { title, slug, description, goal_amount, currency, is_active, suggested_amounts } = req.body;
+      const { title, slug, description, goal_amount, currency, is_active, suggested_amounts, image_url } = req.body;
       
-      let imageUrl = req.body.image_url;
+      let imageUrl = image_url;
 
       if (req.file) {
         try {

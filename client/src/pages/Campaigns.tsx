@@ -127,11 +127,20 @@ function CampaignForm({ campaign, onSuccess, onCancel }: CampaignFormProps) {
     const formData = new FormData();
     Object.entries(data).forEach(([key, value]) => {
       if (value !== undefined && value !== null) {
-        formData.append(key, value.toString());
+        // Handle array fields (like suggested_amounts)
+        if (Array.isArray(value)) {
+          formData.append(key, JSON.stringify(value));
+        } else {
+          formData.append(key, value.toString());
+        }
       }
     });
+
     if (imageFile) {
       formData.append('image', imageFile);
+    } else if (campaign?.image_url) {
+      // Preserve existing image_url if no new file is selected
+      formData.append('image_url', campaign.image_url);
     }
 
     if (isEditing) {
