@@ -314,7 +314,7 @@ export default function CampaignsPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingCampaign, setEditingCampaign] = useState<CampaignWithTotals | undefined>();
 
-  const { data: campaignsResponse, isLoading } = useQuery({
+  const { data: campaignsResponse, isLoading, error } = useQuery<{ data: CampaignWithTotals[] }>({
     queryKey: ['/api/campaigns'],
   });
 
@@ -333,7 +333,15 @@ export default function CampaignsPage() {
     return <LoadingPage />;
   }
 
-  const campaigns = (campaignsResponse?.data || []) as CampaignWithTotals[];
+  if (error) {
+    toast({ 
+      variant: 'destructive', 
+      title: 'Error', 
+      description: 'No se pudieron cargar las campañas. Por favor intenta de nuevo.' 
+    });
+  }
+
+  const campaigns = campaignsResponse?.data || [];
 
   const openCreateDialog = () => {
     setEditingCampaign(undefined);

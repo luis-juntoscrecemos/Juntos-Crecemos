@@ -1,0 +1,65 @@
+TASK: Fix the “Campañas” page so newly created campaigns appear immediately, and properly connect campaigns to the authenticated organization via organizations_users + Supabase RLS/auth.
+
+CURRENT SYMPTOM
+- Creating a campaign succeeds (no error toast), but the campaign list stays empty.
+- This is likely because the campaigns list fetch does not include the Supabase Bearer token and/or the response shape is not handled consistently.
+
+CODE LOCATIONS (IN THIS REPO)
+- Campaign page: client/src/pages/Campaigns.tsx
+- Global React Query fetcher: client/src/lib/queryClient.ts
+- Auth’d API helper (already adds Bearer token): client/src/lib/api.ts (campaignsApi.list/create/update/delete)
+- Server routes: server/routes.ts (GET/POST /api/campaigns use authMiddleware and organizationId)
+- Org membership: organizations_users table provides org_id for the authenticated auth user
+
+ROOT CAUSE TO FIX
+In Campaigns.tsx, useQuery uses only queryKey ['/api/campaigns'] and therefore uses getQueryFn from queryClient.ts, which does fetch() WITHOUT Authorization header. But /api/campaigns requires authMiddleware, so it returns 401 and the UI shows no campaigns.
+
+REQUIRED FIX (choose best approach and implement consistently)
+Option A (preferred): Update client/src/lib/queryClient.ts getQueryFn to attach Supabase access token:
+- Import getAccessToken from client/src/lib/supabase (same helper used in client/src/lib/api.ts).
+- For any request whose URL starts with "/api", add header Authorization: Bearer <token>.
+- Keep credentials include if needed, but Bearer token must be present.
+- Ensure errors are surfaced (don’t silently swallow 401).
+
+Option B: In client/src/pages/Campaigns.tsx, set queryFn explicitly:
+- useQuery({ queryKey: ['/api/campaigns'], queryFn: campaignsApi.list })
+- Adjust parsing because campaignsApi.list returns ApiResponse<T> where server wraps { data: ... }.
+- Ensure campaigns list becomes an array (not nested objects).
+
+CAMPAIGN FIELDS / FORM ENHANCEMENTS
+The “Nueva campaña” dialog currently has: title, slug, description, goal_amount, is_active.
+Add:
+- suggested_amounts (optional): input as comma-separated numbers, store as array (e.g., [20000,50000,100000])
+- currency (default COP) (either a hidden default or dropdown)
+Optional (nice-to-have):
+- start_date, end_date
+- cover_image_url (stub UI if storage not ready)
+
+SUPABASE CONNECTION / DATA MODEL
+Backend already inserts into 'campaigns' with org_id = req.organizationId, and reads from campaigns_with_totals filtered by org_id.
+Confirm/ensure:
+- campaigns table has org_id uuid NOT NULL referencing organizations.id (or organizations table id)
+- slug is unique (db constraint)
+- suggested_amounts is jsonb or numeric[]
+- currency text default 'COP'
+- is_active boolean default true
+- created_at timestamp default now()
+
+If any of these are missing, provide SQL migrations.
+
+RLS / AUTH
+- Ensure authMiddleware correctly resolves req.organizationId using organizations_users.
+- Ensure Supabase RLS/policies or views allow:
+  - org admin to select campaigns_with_totals rows for their org_id
+  - org admin to insert/update/delete campaigns rows for their org_id
+If RLS is not used because server uses service role, still ensure correctness of org scoping via req.organizationId.
+
+UI BEHAVIOR REQUIREMENTS
+- After creating a campaign, it must appear immediately without manual refresh.
+- Ensure React Query invalidation matches the list query key (['/api/campaigns']).
+- If list fetch fails (401/400/500), show a visible error state/toast instead of just empty list.
+
+DELIVERABLES
+- List exactly what files changed.
+- Explain briefly why campaigns weren’t appearing and how your fix resolves it.
+- Confirm by running: create campaign -> list updates immediately.
