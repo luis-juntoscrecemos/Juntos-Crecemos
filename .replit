@@ -43,4 +43,4 @@ waitForPort = 5000
 [userenv.shared]
 
 [agent]
-integrations = ["github:1.0.0"]
+integrations = ["github:1.0.0", "javascript_object_storage:2.0.0"]

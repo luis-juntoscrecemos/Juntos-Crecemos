@@ -57,6 +57,7 @@ export interface Campaign {
   currency: string;
   is_active: boolean;
   suggested_amounts: number[] | null;
+  image_url: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -74,6 +75,7 @@ export const insertCampaignSchema = z.object({
   currency: z.string().default("COP"),
   is_active: z.boolean().default(true),
   suggested_amounts: z.array(z.number()).nullable().optional(),
+  image_url: z.string().url().nullable().optional(),
 });
 
 export type InsertCampaign = z.infer<typeof insertCampaignSchema>;

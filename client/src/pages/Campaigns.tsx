@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Plus, Megaphone, Edit, Trash2, Eye, ExternalLink, Copy, Check } from 'lucide-react';
+import { Plus, Megaphone, Edit, Trash2, Eye, ExternalLink, Copy, Check, Upload, Image as ImageIcon } from 'lucide-react';
 import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState } from '@/components/common/EmptyState';
 import { LoadingPage, LoadingSpinner } from '@/components/common/LoadingSpinner';
@@ -10,6 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Progress } from '@/components/ui/progress';
@@ -39,6 +40,8 @@ interface CampaignFormProps {
 function CampaignForm({ campaign, onSuccess, onCancel }: CampaignFormProps) {
   const { toast } = useToast();
   const isEditing = !!campaign;
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(campaign?.image_url || null);
 
   const form = useForm<InsertCampaign>({
     resolver: zodResolver(insertCampaignSchema),
@@ -49,12 +52,23 @@ function CampaignForm({ campaign, onSuccess, onCancel }: CampaignFormProps) {
       goal_amount: campaign?.goal_amount || undefined,
       currency: campaign?.currency || 'COP',
       is_active: campaign?.is_active ?? true,
+      image_url: campaign?.image_url || null,
     },
   });
 
   const createMutation = useMutation({
-    mutationFn: campaignsApi.create,
-    onSuccess: () => {
+    mutationFn: (formData: FormData) => fetch('/api/campaigns', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('supabase_token') || ''}`,
+      },
+      body: formData,
+    }).then(res => res.json()),
+    onSuccess: (res) => {
+      if (res.error) {
+        toast({ variant: 'destructive', title: 'Error', description: res.error });
+        return;
+      }
       queryClient.invalidateQueries({ queryKey: ['/api/campaigns'] });
       toast({ title: 'Campaña creada', description: 'La campaña se creó correctamente' });
       onSuccess();
@@ -65,8 +79,18 @@ function CampaignForm({ campaign, onSuccess, onCancel }: CampaignFormProps) {
   });
 
   const updateMutation = useMutation({
-    mutationFn: (data: Partial<InsertCampaign>) => campaignsApi.update(campaign!.id, data),
-    onSuccess: () => {
+    mutationFn: (formData: FormData) => fetch(`/api/campaigns/${campaign!.id}`, {
+      method: 'PATCH',
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('supabase_token') || ''}`,
+      },
+      body: formData,
+    }).then(res => res.json()),
+    onSuccess: (res) => {
+      if (res.error) {
+        toast({ variant: 'destructive', title: 'Error', description: res.error });
+        return;
+      }
       queryClient.invalidateQueries({ queryKey: ['/api/campaigns'] });
       toast({ title: 'Campaña actualizada', description: 'Los cambios se guardaron correctamente' });
       onSuccess();
@@ -78,11 +102,33 @@ function CampaignForm({ campaign, onSuccess, onCancel }: CampaignFormProps) {
 
   const isPending = createMutation.isPending || updateMutation.isPending;
 
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setImageFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const onSubmit = (data: InsertCampaign) => {
+    const formData = new FormData();
+    Object.entries(data).forEach(([key, value]) => {
+      if (value !== undefined && value !== null) {
+        formData.append(key, value.toString());
+      }
+    });
+    if (imageFile) {
+      formData.append('image', imageFile);
+    }
+
     if (isEditing) {
-      updateMutation.mutate(data);
+      updateMutation.mutate(formData);
     } else {
-      createMutation.mutate(data);
+      createMutation.mutate(formData);
     }
   };
 
@@ -205,6 +251,38 @@ function CampaignForm({ campaign, onSuccess, onCancel }: CampaignFormProps) {
           />
         </div>
 
+        <div className="space-y-2">
+          <FormLabel>Imagen de la campaña</FormLabel>
+          <div className="flex items-center gap-4">
+            <div className="w-24 h-24 rounded-md border bg-muted flex items-center justify-center overflow-hidden">
+              {imagePreview ? (
+                <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
+              ) : (
+                <ImageIcon className="w-8 h-8 text-muted-foreground" />
+              )}
+            </div>
+            <div className="flex-1">
+              <Input
+                type="file"
+                accept="image/*"
+                onChange={handleImageChange}
+                className="hidden"
+                id="campaign-image"
+              />
+              <Label
+                htmlFor="campaign-image"
+                className="flex items-center gap-2 cursor-pointer bg-secondary text-secondary-foreground hover:bg-secondary/80 h-9 px-4 py-2 rounded-md text-sm font-medium transition-colors"
+              >
+                <Upload className="w-4 h-4" />
+                {imageFile ? 'Cambiar imagen' : 'Subir imagen'}
+              </Label>
+              <p className="text-xs text-muted-foreground mt-2">
+                Formatos recomendados: PNG, JPG o WebP. Máx 2MB.
+              </p>
+            </div>
+          </div>
+        </div>
+
         <DialogFooter>
           <Button type="button" variant="outline" onClick={onCancel}>
             Cancelar
@@ -250,7 +328,16 @@ function CampaignCard({ campaign, onEdit, onDelete }: CampaignCardProps) {
   };
 
   return (
-    <Card>
+    <Card className="overflow-hidden">
+      {campaign.image_url && (
+        <div className="w-full h-48 overflow-hidden">
+          <img 
+            src={campaign.image_url} 
+            alt={campaign.title} 
+            className="w-full h-full object-cover transition-transform hover:scale-105"
+          />
+        </div>
+      )}
       <CardHeader className="flex flex-row items-start justify-between gap-4 space-y-0">
         <div className="space-y-1">
           <CardTitle className="text-lg">{campaign.title}</CardTitle>

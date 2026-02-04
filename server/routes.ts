@@ -385,13 +385,37 @@ export async function registerRoutes(
     }
   });
 
-  app.post('/api/campaigns', authMiddleware, async (req: AuthenticatedRequest, res) => {
+  app.post('/api/campaigns', authMiddleware, upload.single('image'), async (req: AuthenticatedRequest & { file?: Express.Multer.File }, res) => {
     try {
       if (!req.organizationId) {
         return res.status(400).json({ error: 'Debes tener una organización para crear campañas' });
       }
 
       const { title, slug, description, goal_amount, currency, is_active, suggested_amounts } = req.body;
+      let imageUrl = null;
+
+      if (req.file) {
+        try {
+          const fileExt = req.file.originalname.split('.').pop() || 'png';
+          const filePath = `${req.organizationId}/campaigns/${Date.now()}.${fileExt}`;
+
+          const { error: uploadError } = await supabase.storage
+            .from('campaign-images')
+            .upload(filePath, req.file.buffer, {
+              contentType: req.file.mimetype,
+              upsert: true,
+            });
+
+          if (!uploadError) {
+            const { data: urlData } = supabase.storage
+              .from('campaign-images')
+              .getPublicUrl(filePath);
+            imageUrl = urlData.publicUrl;
+          }
+        } catch (err) {
+          console.error('Image upload error:', err);
+        }
+      }
 
       const { data, error } = await supabase
         .from('campaigns')
@@ -404,6 +428,7 @@ export async function registerRoutes(
           currency: currency || 'COP',
           is_active: is_active ?? true,
           suggested_amounts,
+          image_url: imageUrl,
         })
         .select()
         .single();
@@ -423,10 +448,35 @@ export async function registerRoutes(
     }
   });
 
-  app.patch('/api/campaigns/:id', authMiddleware, async (req: AuthenticatedRequest, res) => {
+  app.patch('/api/campaigns/:id', authMiddleware, upload.single('image'), async (req: AuthenticatedRequest & { file?: Express.Multer.File }, res) => {
     try {
       const { id } = req.params;
       const { title, slug, description, goal_amount, currency, is_active, suggested_amounts } = req.body;
+      
+      let imageUrl = req.body.image_url;
+
+      if (req.file) {
+        try {
+          const fileExt = req.file.originalname.split('.').pop() || 'png';
+          const filePath = `${req.organizationId}/campaigns/${Date.now()}.${fileExt}`;
+
+          const { error: uploadError } = await supabase.storage
+            .from('campaign-images')
+            .upload(filePath, req.file.buffer, {
+              contentType: req.file.mimetype,
+              upsert: true,
+            });
+
+          if (!uploadError) {
+            const { data: urlData } = supabase.storage
+              .from('campaign-images')
+              .getPublicUrl(filePath);
+            imageUrl = urlData.publicUrl;
+          }
+        } catch (err) {
+          console.error('Image upload error:', err);
+        }
+      }
 
       const { data, error } = await supabase
         .from('campaigns')
@@ -438,6 +488,7 @@ export async function registerRoutes(
           currency,
           is_active,
           suggested_amounts,
+          image_url: imageUrl,
           updated_at: new Date().toISOString(),
         })
         .eq('id', id)
