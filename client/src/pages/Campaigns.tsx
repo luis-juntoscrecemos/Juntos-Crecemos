@@ -123,6 +123,12 @@ function CampaignForm({ campaign, onSuccess, onCancel }: CampaignFormProps) {
     }
   };
 
+  const removeImage = () => {
+    setImageFile(null);
+    setImagePreview(null);
+    form.setValue('image_url', null);
+  };
+
   const onSubmit = (data: InsertCampaign) => {
     const formData = new FormData();
     Object.entries(data).forEach(([key, value]) => {
@@ -138,8 +144,11 @@ function CampaignForm({ campaign, onSuccess, onCancel }: CampaignFormProps) {
 
     if (imageFile) {
       formData.append('image', imageFile);
+    } else if (imagePreview === null) {
+      // Explicitly remove image
+      formData.append('image_url', '');
     } else if (campaign?.image_url) {
-      // Preserve existing image_url if no new file is selected
+      // Preserve existing image_url if no new file is selected and not explicitly removed
       formData.append('image_url', campaign.image_url);
     }
 
@@ -287,13 +296,27 @@ function CampaignForm({ campaign, onSuccess, onCancel }: CampaignFormProps) {
                 className="hidden"
                 id="campaign-image"
               />
-              <Label
-                htmlFor="campaign-image"
-                className="flex items-center gap-2 cursor-pointer bg-secondary text-secondary-foreground hover:bg-secondary/80 h-9 px-4 py-2 rounded-md text-sm font-medium transition-colors"
-              >
-                <Upload className="w-4 h-4" />
-                {imageFile ? 'Cambiar imagen' : 'Subir imagen'}
-              </Label>
+              <div className="flex gap-2">
+                <Label
+                  htmlFor="campaign-image"
+                  className="flex items-center gap-2 cursor-pointer bg-secondary text-secondary-foreground hover:bg-secondary/80 h-9 px-4 py-2 rounded-md text-sm font-medium transition-colors"
+                >
+                  <Upload className="w-4 h-4" />
+                  {imagePreview ? 'Cambiar imagen' : 'Subir imagen'}
+                </Label>
+                {imagePreview && (
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={removeImage}
+                    className="text-destructive hover:text-destructive"
+                  >
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Quitar
+                  </Button>
+                )}
+              </div>
               <p className="text-xs text-muted-foreground mt-2">
                 Formatos recomendados: PNG, JPG o WebP. Máx 2MB.
               </p>

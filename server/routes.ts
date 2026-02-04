@@ -500,6 +500,9 @@ export async function registerRoutes(
         } catch (err) {
           console.error('Image upload error:', err);
         }
+      } else if (image_url === '') {
+        console.log('Explicit image removal requested');
+        imageUrl = null;
       } else {
         console.log('No new file received for campaign update, preserving image_url:', imageUrl);
       }
