@@ -397,6 +397,12 @@ export async function registerRoutes(
       let imageUrl = null;
 
       if (req.file) {
+        console.log('Received file for campaign creation:', {
+          originalname: req.file.originalname,
+          mimetype: req.file.mimetype,
+          size: req.file.size,
+        });
+        
         try {
           const fileExt = req.file.originalname.split('.').pop() || 'png';
           const filePath = `${req.organizationId}/campaigns/${Date.now()}.${fileExt}`;
@@ -408,16 +414,23 @@ export async function registerRoutes(
               upsert: true,
             });
 
-          if (!uploadError) {
+          if (uploadError) {
+            console.error('Storage upload error:', uploadError);
+          } else {
             const { data: urlData } = supabase.storage
               .from('campaign-images')
               .getPublicUrl(filePath);
             imageUrl = urlData.publicUrl;
+            console.log('Image uploaded successfully, URL:', imageUrl);
           }
         } catch (err) {
           console.error('Image upload error:', err);
         }
+      } else {
+        console.log('No file received for campaign creation');
       }
+
+      console.log('Creating campaign with image_url:', imageUrl);
 
       const { data, error } = await supabase
         .from('campaigns')
@@ -458,6 +471,12 @@ export async function registerRoutes(
       let imageUrl = image_url;
 
       if (req.file) {
+        console.log('Received file for campaign update:', {
+          originalname: req.file.originalname,
+          mimetype: req.file.mimetype,
+          size: req.file.size,
+        });
+        
         try {
           const fileExt = req.file.originalname.split('.').pop() || 'png';
           const filePath = `${req.organizationId}/campaigns/${Date.now()}.${fileExt}`;
@@ -469,16 +488,23 @@ export async function registerRoutes(
               upsert: true,
             });
 
-          if (!uploadError) {
+          if (uploadError) {
+            console.error('Storage upload error:', uploadError);
+          } else {
             const { data: urlData } = supabase.storage
               .from('campaign-images')
               .getPublicUrl(filePath);
             imageUrl = urlData.publicUrl;
+            console.log('Image uploaded successfully, URL:', imageUrl);
           }
         } catch (err) {
           console.error('Image upload error:', err);
         }
+      } else {
+        console.log('No new file received for campaign update, preserving image_url:', imageUrl);
       }
+
+      console.log('Updating campaign with image_url:', imageUrl);
 
       const { data, error } = await supabase
         .from('campaigns')
