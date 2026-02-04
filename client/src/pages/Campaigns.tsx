@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Plus, Megaphone, Edit, Trash2, Eye, ExternalLink } from 'lucide-react';
+import { Plus, Megaphone, Edit, Trash2, Eye, ExternalLink, Copy, Check } from 'lucide-react';
 import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState } from '@/components/common/EmptyState';
 import { LoadingPage, LoadingSpinner } from '@/components/common/LoadingSpinner';
@@ -232,9 +232,22 @@ interface CampaignCardProps {
 }
 
 function CampaignCard({ campaign, onEdit, onDelete }: CampaignCardProps) {
+  const { toast } = useToast();
+  const [copied, setCopied] = useState(false);
   const progress = campaign.goal_amount 
     ? Math.min(100, (campaign.raised_minor / (campaign.goal_amount * 100)) * 100)
     : 0;
+
+  const copyUrl = () => {
+    const url = `${window.location.origin}/donar/${campaign.slug}`;
+    navigator.clipboard.writeText(url);
+    setCopied(true);
+    toast({
+      title: 'URL copiada',
+      description: 'El enlace de donación ha sido copiado al portapapeles',
+    });
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   return (
     <Card>
@@ -282,6 +295,13 @@ function CampaignCard({ campaign, onEdit, onDelete }: CampaignCardProps) {
         <Button size="sm" variant="outline" onClick={onEdit} data-testid={`button-edit-campaign-${campaign.id}`}>
           <Edit className="w-4 h-4 mr-1" />
           Editar
+        </Button>
+        <Button size="sm" variant="outline" onClick={copyUrl} data-testid={`button-copy-campaign-url-${campaign.id}`}>
+          {copied ? (
+            <Check className="w-4 h-4 text-primary" />
+          ) : (
+            <Copy className="w-4 h-4" />
+          )}
         </Button>
         <AlertDialog>
           <AlertDialogTrigger asChild>
