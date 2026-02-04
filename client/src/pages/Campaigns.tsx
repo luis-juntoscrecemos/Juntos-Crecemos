@@ -19,6 +19,7 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { campaignsApi } from '@/lib/api';
+import { getAccessToken } from '@/lib/supabase';
 import { insertCampaignSchema, type InsertCampaign, type CampaignWithTotals } from '@shared/schema';
 import { queryClient } from '@/lib/queryClient';
 
@@ -57,13 +58,17 @@ function CampaignForm({ campaign, onSuccess, onCancel }: CampaignFormProps) {
   });
 
   const createMutation = useMutation({
-    mutationFn: (formData: FormData) => fetch('/api/campaigns', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('supabase_token') || ''}`,
-      },
-      body: formData,
-    }).then(res => res.json()),
+    mutationFn: async (formData: FormData) => {
+      const token = await getAccessToken();
+      const res = await fetch('/api/campaigns', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token || ''}`,
+        },
+        body: formData,
+      });
+      return res.json();
+    },
     onSuccess: (res) => {
       if (res.error) {
         toast({ variant: 'destructive', title: 'Error', description: res.error });
@@ -79,13 +84,17 @@ function CampaignForm({ campaign, onSuccess, onCancel }: CampaignFormProps) {
   });
 
   const updateMutation = useMutation({
-    mutationFn: (formData: FormData) => fetch(`/api/campaigns/${campaign!.id}`, {
-      method: 'PATCH',
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('supabase_token') || ''}`,
-      },
-      body: formData,
-    }).then(res => res.json()),
+    mutationFn: async (formData: FormData) => {
+      const token = await getAccessToken();
+      const res = await fetch(`/api/campaigns/${campaign!.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${token || ''}`,
+        },
+        body: formData,
+      });
+      return res.json();
+    },
     onSuccess: (res) => {
       if (res.error) {
         toast({ variant: 'destructive', title: 'Error', description: res.error });
