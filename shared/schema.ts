@@ -192,12 +192,34 @@ export interface AuthUser {
   created_at: string;
 }
 
-// Dashboard Stats
+// Dashboard Stats (legacy)
 export interface DashboardStats {
   totalDonations: number;
   totalRaised: number;
   activeCampaigns: number;
   totalDonors: number;
+}
+
+// Dashboard Overview (date-range filtered)
+export interface DashboardOverview {
+  totalRaised: number;
+  donationsCount: number;
+  averageTicket: number;
+  activeCampaigns: number;
+}
+
+// Dashboard Chart Data Point
+export interface DashboardSeriesPoint {
+  date: string;
+  amount: number;
+  count: number;
+}
+
+// Donation Detail (with campaign + org info)
+export interface DonationDetail extends Donation {
+  campaign_title: string | null;
+  campaign_slug: string | null;
+  organization_name: string | null;
 }
 
 // API Response types

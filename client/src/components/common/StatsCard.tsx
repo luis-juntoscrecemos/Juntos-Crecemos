@@ -13,13 +13,14 @@ interface StatsCardProps {
 }
 
 export function StatsCard({ title, value, icon: Icon, description, trend }: StatsCardProps) {
+  const testId = title.toLowerCase().replace(/\s+/g, '-');
   return (
-    <Card>
+    <Card data-testid={`stats-card-${testId}`}>
       <CardContent className="p-6">
         <div className="flex items-start justify-between gap-4">
           <div className="space-y-2">
             <p className="text-sm font-medium text-muted-foreground">{title}</p>
-            <p className="text-2xl font-bold">{value}</p>
+            <p className="text-2xl font-bold" data-testid={`text-stats-value-${testId}`}>{value}</p>
             {description && (
               <p className="text-xs text-muted-foreground">{description}</p>
             )}

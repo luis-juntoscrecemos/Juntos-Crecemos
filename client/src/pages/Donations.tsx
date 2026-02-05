@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Heart, Download, Search, Filter } from 'lucide-react';
+import { Link } from 'wouter';
+import { Heart, Download, Search } from 'lucide-react';
 import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState } from '@/components/common/EmptyState';
 import { LoadingPage } from '@/components/common/LoadingSpinner';
@@ -52,11 +53,11 @@ export default function DonationsPage() {
   const [campaignFilter, setCampaignFilter] = useState<string>('all');
   const [isExporting, setIsExporting] = useState(false);
 
-  const { data: donationsResponse, isLoading: donationsLoading } = useQuery({
+  const { data: donationsResponse, isLoading: donationsLoading } = useQuery<{ data: Donation[] }>({
     queryKey: ['/api/donations'],
   });
 
-  const { data: campaignsResponse, isLoading: campaignsLoading } = useQuery({
+  const { data: campaignsResponse, isLoading: campaignsLoading } = useQuery<{ data: CampaignWithTotals[] }>({
     queryKey: ['/api/campaigns'],
   });
 
@@ -206,6 +207,7 @@ export default function DonationsPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead>ID</TableHead>
                     <TableHead>Donante</TableHead>
                     <TableHead>Campaña</TableHead>
                     <TableHead>Monto</TableHead>
@@ -217,6 +219,13 @@ export default function DonationsPage() {
                 <TableBody>
                   {filteredDonations.map((donation) => (
                     <TableRow key={donation.id} data-testid={`donation-row-${donation.id}`}>
+                      <TableCell>
+                        <Link href={`/donations/${donation.id}`}>
+                          <span className="font-mono text-sm text-primary cursor-pointer hover:underline" data-testid={`link-donation-${donation.id}`}>
+                            {donation.id.substring(0, 8)}...
+                          </span>
+                        </Link>
+                      </TableCell>
                       <TableCell>
                         <div>
                           <p className="font-medium">

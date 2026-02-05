@@ -20,7 +20,7 @@ export default function OrganizationPage() {
   const { toast } = useToast();
   const [isEditing, setIsEditing] = useState(false);
 
-  const { data: orgResponse, isLoading } = useQuery({
+  const { data: orgResponse, isLoading } = useQuery<{ data: Organization }>({
     queryKey: ['/api/organizations/me'],
   });
 

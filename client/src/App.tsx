@@ -17,6 +17,7 @@ import StyleGuide from "@/pages/StyleGuide";
 import OrganizationPage from "@/pages/Organization";
 import CampaignsPage from "@/pages/Campaigns";
 import DonationsPage from "@/pages/Donations";
+import DonationDetailPage from "@/pages/DonationDetail";
 import SettingsPage from "@/pages/Settings";
 import DonatePage from "@/pages/public/DonatePage";
 
@@ -164,6 +165,12 @@ function Router() {
       <Route path="/campaigns">
         <ProtectedRoute>
           <CampaignsPage />
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/donations/:id">
+        <ProtectedRoute>
+          <DonationDetailPage />
         </ProtectedRoute>
       </Route>
 

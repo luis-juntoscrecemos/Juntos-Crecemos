@@ -66,15 +66,19 @@ Note: Frontend receives Supabase config via `/api/config` endpoint to avoid need
 ## API Endpoints
 
 ### Protected (requires auth)
-- `GET /api/dashboard/stats` - Dashboard statistics
+- `GET /api/dashboard/stats` - Dashboard statistics (legacy, all-time)
+- `GET /api/dashboard/overview?start=&end=` - Date-range filtered KPIs (totalRaised, donationsCount, averageTicket, activeCampaigns)
+- `GET /api/dashboard/series?start=&end=` - Chart data: daily aggregation of donations (date, amount, count)
+- `GET /api/dashboard/recent-donations?start=&end=&limit=` - Recent donations with campaign info, date-range filtered
 - `GET /api/organizations/me` - Get current user's organization
 - `PATCH /api/organizations/:id` - Update organization
 - `GET /api/campaigns` - List campaigns
-- `POST /api/campaigns` - Create campaign
-- `PATCH /api/campaigns/:id` - Update campaign
+- `POST /api/campaigns` - Create campaign (multipart form with optional image)
+- `PATCH /api/campaigns/:id` - Update campaign (multipart form with optional image)
 - `DELETE /api/campaigns/:id` - Delete campaign
 - `GET /api/donations` - List donations
 - `GET /api/donations/export` - Export donations as CSV
+- `GET /api/donations/:id` - Get single donation detail with campaign/org info
 
 ### Public (no auth)
 - `GET /api/public/campaigns/:orgSlug/:campaignSlug` - Get public campaign + organization

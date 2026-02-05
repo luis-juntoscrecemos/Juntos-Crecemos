@@ -1,0 +1,123 @@
+TASK: Update the “Control Panel / Dashboard” for an organization admin in Juntos Crecemos.
+
+CONTEXT
+- Product: Juntos Crecemos is a SaaS platform for South American NGOs to accept and manage donations.
+- Users: NGO admins sign in and view a dashboard for their organization.
+- Language: Spanish UI (default), currency COP initially but keep formatting locale-aware (es-CO ready).
+
+GOAL
+Replace the current dashboard (which shows total all-time donations + donors count, etc.) with a more operational, action-oriented dashboard:
+- Emphasize performance over a selected time range (default last 7 days)
+- Show a large hero chart
+- Keep only the most useful KPI cards
+- Keep Active Campaigns list but make it actionable
+- Place Recent Donations table BELOW the chart and make transactions drill-down capable
+
+REQUIRED DASHBOARD LAYOUT (TOP → BOTTOM)
+
+1) Header Row
+- Page title: “Dashboard”
+- Date range selector (default: last 7 days)
+  - Presets: 7d, 30d, 90d, YTD
+  - Optional: Custom date range (nice to have)
+- Quick Action button on the right: “Nueva campaña” (keeps current flow)
+
+2) KPI Cards (limit to 3–4)
+These MUST reflect the selected date range (not all-time):
+- “Monto recaudado” (net preferred, gross ok for now if no fees)
+- “Número de donaciones”
+- “Ticket promedio” (avg donation)
+- “Campañas activas” (count of active campaigns)
+
+REMOVE from dashboard KPI cards:
+- All-time “Total donations made”
+- “Total number of donors” (do not show on dashboard)
+
+3) HERO CHART (BIG, MAIN VISUAL)
+- Title: “Donaciones en el tiempo”
+- Default: last 7 days, daily aggregation
+- Chart type: line or bar (choose what matches existing UI)
+- X-axis: date, Y-axis: donation amount
+- Must update when date range changes
+- Nice to have: toggle between “Monto” and “# Donaciones”
+- Nice to have: daily/weekly toggle if range is large
+
+4) ACTIVE CAMPAIGNS SECTION
+Show an “Campañas activas” table/list with actionable info:
+- Campaign name
+- Status badge: Active / Paused / Draft (at least Active/Inactive)
+- Progress toward goal: amount raised vs goal + progress bar
+- Amount raised within selected date range (optional but recommended)
+- Quick actions: View / Edit / Copy public link / Pause-Resume (at least View + Edit)
+- Include an empty state (“No tienes campañas activas…”) with CTA “Crear campaña”
+
+5) RECENT DONATIONS TABLE (BELOW CHART)
+This is the table directly under the chart.
+Fields required:
+- Transaction ID (clickable) → navigates to transaction detail page
+- Donor name
+- Amount
+- Campaign name
+- Donation type: One-time / Recurring
+- Status badge: Succeeded / Pending / Failed / Refunded (at least Succeeded/Failed)
+- Timestamp
+Behavior:
+- Show most recent first
+- Show top 10–20
+- Provide link/button “Ver todas” to go to full Donations page
+- Filters (nice to have): All / Succeeded / Failed / Recurring
+
+TRANSACTION DETAIL PAGE (MUST)
+When clicking Transaction ID, open a detail page showing:
+- Transaction ID
+- Donor name + email (if stored)
+- Amount, currency
+- Campaign
+- One-time vs recurring
+- Status + timestamps
+- Any message/note from donor (if stored)
+- Internal metadata (optional): provider reference, payment intent id, etc.
+
+DATA + BACKEND REQUIREMENTS
+- The dashboard must be scoped to the currently signed-in org admin’s organization.
+- Use our existing Supabase schema and relationships (organizations + organizations_users membership).
+- IMPORTANT: Fix current issue where newly created campaigns do not appear on the campaigns list.
+  - Ensure campaign creation writes organization_id correctly.
+  - Ensure queries filter by organization_id of the logged-in user.
+
+Implementation guidance (adapt based on current code):
+- Determine organization_id from organizations_users where user_id = auth user id.
+- All queries for campaigns and donations MUST filter by organization_id.
+- If campaigns belong to organization, store campaign.organization_id and index it.
+- Donations should join to campaigns to display campaign name in the Recent Donations table.
+
+AGGREGATION QUERIES (for selected date range)
+- Monto recaudado: SUM(donations.amount) where status succeeded and created_at between range and organization_id = X
+- # Donaciones: COUNT(*) same filter
+- Ticket promedio: SUM(amount)/COUNT(*)
+- Active campaigns: COUNT(*) where campaigns.status=active and organization_id = X
+- Chart series: group donations by day (or week) within range and sum amounts
+
+UI/UX REQUIREMENTS
+- Mobile-first responsive layout
+- Spanish labels
+- Clear empty states
+- Fast loading: show skeletons while fetching
+- Consistent with the existing dashboard theme/colors
+
+ACCEPTANCE CRITERIA
+- Changing the date range updates KPI cards + hero chart + recent donations list.
+- Dashboard does NOT show all-time totals or donor count cards.
+- Recent Donations table appears directly under the chart and includes the required columns.
+- Transaction ID links correctly to a transaction detail page.
+- Active campaigns show correctly and newly created campaigns appear immediately for that org.
+- All data is correctly scoped to the logged-in organization admin.
+
+DELIVERABLES
+- Updated dashboard page UI
+- Required data fetching + aggregation
+- Transaction detail page + routing
+- Any needed schema adjustments/migrations (include SQL if necessary)
+- Tests or basic sanity checks (at least console-free, no runtime errors)
+
+Please implement this now. If any part of the current schema is missing required fields (e.g., status, recurring flag), add them with safe defaults and update the code accordingly.

@@ -4,10 +4,13 @@ import type {
   Campaign, 
   CampaignWithTotals,
   Donation, 
+  DonationDetail,
   InsertOrganization,
   InsertCampaign,
   InsertDonation,
   DashboardStats,
+  DashboardOverview,
+  DashboardSeriesPoint,
   ApiResponse 
 } from '@shared/schema';
 
@@ -34,13 +37,13 @@ async function apiRequest<T>(
       headers,
     });
 
-    const data = await response.json();
+    const body = await response.json();
 
     if (!response.ok) {
-      return { error: data.error || 'Error en la solicitud' };
+      return { error: body.error || 'Error en la solicitud' };
     }
 
-    return { data };
+    return body;
   } catch (error) {
     return { error: 'Error de conexión' };
   }
@@ -133,4 +136,16 @@ export const publicApi = {
 export const dashboardApi = {
   getStats: () =>
     apiRequest<DashboardStats>('/dashboard/stats'),
+  getOverview: (start: string, end: string) =>
+    apiRequest<DashboardOverview>(`/dashboard/overview?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`),
+  getSeries: (start: string, end: string) =>
+    apiRequest<DashboardSeriesPoint[]>(`/dashboard/series?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`),
+  getRecentDonations: (start: string, end: string, limit: number = 15) =>
+    apiRequest<DonationDetail[]>(`/dashboard/recent-donations?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}&limit=${limit}`),
+};
+
+// Donation Detail
+export const donationDetailApi = {
+  get: (id: string) =>
+    apiRequest<DonationDetail>(`/donations/${id}`),
 };

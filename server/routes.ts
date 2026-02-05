@@ -233,7 +233,6 @@ export async function registerRoutes(
         });
       }
 
-      // Get total donations and raised amount
       const { data: donations } = await supabase
         .from('donations')
         .select('amount_minor, status')
@@ -243,14 +242,12 @@ export async function registerRoutes(
       const totalDonations = donations?.length || 0;
       const totalRaised = donations?.reduce((sum, d) => sum + (d.amount_minor || 0), 0) || 0;
 
-      // Get active campaigns count
       const { count: activeCampaigns } = await supabase
         .from('campaigns')
         .select('*', { count: 'exact', head: true })
         .eq('org_id', req.organizationId)
         .eq('is_active', true);
 
-      // Get unique donors count
       const { data: uniqueDonors } = await supabase
         .from('donations')
         .select('donor_email')
@@ -262,7 +259,7 @@ export async function registerRoutes(
       res.json({
         data: {
           totalDonations,
-          totalRaised: totalRaised / 100, // Convert from minor units
+          totalRaised: totalRaised / 100,
           activeCampaigns: activeCampaigns || 0,
           totalDonors: uniqueEmails.size,
         },
@@ -270,6 +267,153 @@ export async function registerRoutes(
     } catch (error) {
       console.error('Dashboard stats error:', error);
       res.status(500).json({ error: 'Error al obtener estadísticas' });
+    }
+  });
+
+  // Dashboard Overview (date-range filtered KPIs)
+  app.get('/api/dashboard/overview', authMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      if (!req.organizationId) {
+        return res.json({
+          data: { totalRaised: 0, donationsCount: 0, averageTicket: 0, activeCampaigns: 0 },
+        });
+      }
+
+      const { start, end } = req.query as { start?: string; end?: string };
+
+      let donationsQuery = supabase
+        .from('donations')
+        .select('amount_minor')
+        .eq('org_id', req.organizationId)
+        .eq('status', 'paid');
+
+      if (start) donationsQuery = donationsQuery.gte('created_at', start);
+      if (end) donationsQuery = donationsQuery.lte('created_at', end);
+
+      const { data: donations } = await donationsQuery;
+
+      const donationsCount = donations?.length || 0;
+      const totalRaisedMinor = donations?.reduce((sum, d) => sum + (d.amount_minor || 0), 0) || 0;
+      const totalRaised = totalRaisedMinor / 100;
+      const averageTicket = donationsCount > 0 ? totalRaised / donationsCount : 0;
+
+      const { count: activeCampaigns } = await supabase
+        .from('campaigns')
+        .select('*', { count: 'exact', head: true })
+        .eq('org_id', req.organizationId)
+        .eq('is_active', true);
+
+      res.json({
+        data: {
+          totalRaised,
+          donationsCount,
+          averageTicket,
+          activeCampaigns: activeCampaigns || 0,
+        },
+      });
+    } catch (error) {
+      console.error('Dashboard overview error:', error);
+      res.status(500).json({ error: 'Error al obtener resumen' });
+    }
+  });
+
+  // Dashboard Chart Series (daily aggregation)
+  app.get('/api/dashboard/series', authMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      if (!req.organizationId) {
+        return res.json({ data: [] });
+      }
+
+      const { start, end } = req.query as { start?: string; end?: string };
+
+      let query = supabase
+        .from('donations')
+        .select('amount_minor, created_at')
+        .eq('org_id', req.organizationId)
+        .eq('status', 'paid')
+        .order('created_at', { ascending: true });
+
+      if (start) query = query.gte('created_at', start);
+      if (end) query = query.lte('created_at', end);
+
+      const { data: donations } = await query;
+
+      const dailyMap = new Map<string, { amount: number; count: number }>();
+
+      // Fill all dates in range
+      if (start && end) {
+        const startDate = new Date(start);
+        const endDate = new Date(end);
+        const current = new Date(startDate);
+        while (current <= endDate) {
+          const dateKey = current.toISOString().split('T')[0];
+          dailyMap.set(dateKey, { amount: 0, count: 0 });
+          current.setDate(current.getDate() + 1);
+        }
+      }
+
+      // Aggregate donations by day
+      (donations || []).forEach(d => {
+        const dateKey = new Date(d.created_at).toISOString().split('T')[0];
+        const existing = dailyMap.get(dateKey) || { amount: 0, count: 0 };
+        existing.amount += (d.amount_minor || 0) / 100;
+        existing.count += 1;
+        dailyMap.set(dateKey, existing);
+      });
+
+      const series = Array.from(dailyMap.entries())
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([date, data]) => ({
+          date,
+          amount: data.amount,
+          count: data.count,
+        }));
+
+      res.json({ data: series });
+    } catch (error) {
+      console.error('Dashboard series error:', error);
+      res.status(500).json({ error: 'Error al obtener serie de datos' });
+    }
+  });
+
+  // Dashboard Recent Donations (with campaign info, date-range filtered)
+  app.get('/api/dashboard/recent-donations', authMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      if (!req.organizationId) {
+        return res.json({ data: [] });
+      }
+
+      const { start, end, limit: limitParam } = req.query as { start?: string; end?: string; limit?: string };
+      const limit = Math.min(parseInt(limitParam || '15', 10), 50);
+
+      let query = supabase
+        .from('donations')
+        .select('*, campaigns(title, slug)')
+        .eq('org_id', req.organizationId)
+        .order('created_at', { ascending: false })
+        .limit(limit);
+
+      if (start) query = query.gte('created_at', start);
+      if (end) query = query.lte('created_at', end);
+
+      const { data, error } = await query;
+
+      if (error) {
+        console.error('Recent donations error:', error);
+        return res.status(400).json({ error: 'Error al obtener donaciones recientes' });
+      }
+
+      const enriched = (data || []).map(d => ({
+        ...d,
+        campaign_title: (d.campaigns as any)?.title || null,
+        campaign_slug: (d.campaigns as any)?.slug || null,
+        campaigns: undefined,
+      }));
+
+      res.json({ data: enriched });
+    } catch (error) {
+      console.error('Recent donations error:', error);
+      res.status(500).json({ error: 'Error al obtener donaciones recientes' });
     }
   });
 
@@ -637,6 +781,47 @@ export async function registerRoutes(
     } catch (error) {
       console.error('Export donations error:', error);
       res.status(500).json({ error: 'Error al exportar donaciones' });
+    }
+  });
+
+  // Get single donation detail (MUST be after /export to avoid route conflict)
+  app.get('/api/donations/:id', authMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      if (!req.organizationId) {
+        return res.status(403).json({ error: 'Organización requerida' });
+      }
+
+      const { id } = req.params;
+
+      const { data, error } = await supabase
+        .from('donations')
+        .select('*, campaigns(title, slug)')
+        .eq('id', id)
+        .eq('org_id', req.organizationId)
+        .single();
+
+      if (error || !data) {
+        return res.status(404).json({ error: 'Donación no encontrada' });
+      }
+
+      const { data: org } = await supabase
+        .from('organizations')
+        .select('name')
+        .eq('id', req.organizationId)
+        .single();
+
+      const enriched = {
+        ...data,
+        campaign_title: (data.campaigns as any)?.title || null,
+        campaign_slug: (data.campaigns as any)?.slug || null,
+        organization_name: org?.name || null,
+        campaigns: undefined,
+      };
+
+      res.json({ data: enriched });
+    } catch (error) {
+      console.error('Get donation detail error:', error);
+      res.status(500).json({ error: 'Error al obtener detalle de donación' });
     }
   });
 
