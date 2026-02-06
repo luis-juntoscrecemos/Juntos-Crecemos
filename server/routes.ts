@@ -930,7 +930,7 @@ export async function registerRoutes(
   // Donation Intents (public, no auth)
   // ============================================
 
-  app.post('/api/donation-intents', async (req, res) => {
+  app.post('/api/public/donation-intents', async (req, res) => {
     try {
       const parsed = insertDonationIntentSchema.safeParse(req.body);
       if (!parsed.success) {

@@ -18,24 +18,30 @@ import { Separator } from '@/components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { LoadingPage, LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { publicApi } from '@/lib/api';
+import { insertDonationIntentSchema } from '@shared/schema';
 import type { CampaignWithTotals, Organization } from '@shared/schema';
 
 const MIN_AMOUNT = 5000;
 
-const donationIntentSchema = z.object({
-  amount: z.number().int('El monto debe ser un número entero').min(MIN_AMOUNT, `El monto mínimo es $${MIN_AMOUNT.toLocaleString('es-CO')} COP`),
-  donor_first_name: z.string().min(1, 'Nombre requerido'),
-  donor_last_name: z.string().min(1, 'Apellido requerido'),
-  donor_email: z.string().email('Correo electrónico inválido'),
-  donor_note: z.string().optional(),
-  is_anonymous: z.boolean().default(false),
-  donation_type: z.enum(['one_time', 'recurring']).default('one_time'),
-  recurring_interval: z.enum(['weekly', 'monthly', 'semiannual', 'yearly']).nullable().optional(),
-  cover_fees: z.boolean().default(false),
-  terms_accepted: z.boolean(),
-});
+const donationIntentFormSchema = insertDonationIntentSchema
+  .omit({ campaign_slug: true, org_slug: true })
+  .extend({
+    donor_first_name: z.string().default(''),
+    donor_last_name: z.string().default(''),
+    terms_accepted: z.boolean(),
+  })
+  .superRefine((data, ctx) => {
+    if (!data.is_anonymous) {
+      if (!data.donor_first_name || data.donor_first_name.trim().length === 0) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Nombre requerido', path: ['donor_first_name'] });
+      }
+      if (!data.donor_last_name || data.donor_last_name.trim().length === 0) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Apellido requerido', path: ['donor_last_name'] });
+      }
+    }
+  });
 
-type DonationIntentFormData = z.infer<typeof donationIntentSchema>;
+type DonationIntentFormData = z.infer<typeof donationIntentFormSchema>;
 
 function formatCurrency(amount: number, currency: string = 'COP'): string {
   return new Intl.NumberFormat('es-CO', {
@@ -68,7 +74,7 @@ function DonationForm({ campaign, organization, feePercent, orgSlug }: DonationF
   const suggestedAmounts: number[] = campaign.suggested_amounts || [];
 
   const form = useForm<DonationIntentFormData>({
-    resolver: zodResolver(donationIntentSchema),
+    resolver: zodResolver(donationIntentFormSchema),
     defaultValues: {
       amount: 0,
       donor_first_name: '',
@@ -92,8 +98,8 @@ function DonationForm({ campaign, organization, feePercent, orgSlug }: DonationF
         cover_fees: data.cover_fees,
         donation_type: data.donation_type,
         recurring_interval: data.donation_type === 'recurring' ? data.recurring_interval ?? null : null,
-        donor_first_name: data.donor_first_name,
-        donor_last_name: data.donor_last_name,
+        donor_first_name: data.is_anonymous ? 'Anónimo' : data.donor_first_name,
+        donor_last_name: data.is_anonymous ? '' : data.donor_last_name,
         donor_email: data.donor_email,
         donor_note: data.donor_note || null,
         is_anonymous: data.is_anonymous,
@@ -328,6 +334,7 @@ function DonationForm({ campaign, organization, feePercent, orgSlug }: DonationF
                 <FormControl>
                   <Textarea
                     {...field}
+                    value={field.value ?? ''}
                     placeholder="Escribe un mensaje para la organización..."
                     className="resize-none"
                     rows={2}

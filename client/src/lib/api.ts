@@ -134,7 +134,7 @@ export const publicApi = {
     }),
 
   createDonationIntent: (data: InsertDonationIntent) =>
-    apiRequest<{ intentId: string }>('/donation-intents', {
+    apiRequest<{ intentId: string }>('/public/donation-intents', {
       method: 'POST',
       body: JSON.stringify(data),
     }),

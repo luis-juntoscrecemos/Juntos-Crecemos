@@ -57,14 +57,14 @@ function getDonationTypeLabel(type: string, interval: string | null) {
   return 'Única vez';
 }
 
-function DetailRow({ icon: Icon, label, value, mono }: { icon: any; label: string; value: string | null | undefined; mono?: boolean }) {
+function DetailRow({ icon: Icon, label, value, mono, testId }: { icon: any; label: string; value: string | null | undefined; mono?: boolean; testId: string }) {
   if (!value) return null;
   return (
     <div className="flex items-start gap-3 py-3 border-b last:border-0">
       <Icon className="w-4 h-4 text-muted-foreground mt-0.5 flex-shrink-0" />
       <div className="min-w-0">
         <p className="text-xs text-muted-foreground">{label}</p>
-        <p className={`text-sm font-medium ${mono ? 'font-mono text-xs break-all' : ''}`} data-testid={`text-detail-${label.toLowerCase().replace(/\s+/g, '-')}`}>
+        <p className={`text-sm font-medium ${mono ? 'font-mono text-xs break-all' : ''}`} data-testid={testId}>
           {value}
         </p>
       </div>
@@ -166,39 +166,46 @@ export default function DonationIntentDetailPage() {
                   label="ID de Transacción"
                   value={intent.id}
                   mono
+                  testId="text-intent-id"
                 />
                 <DetailRow
                   icon={Receipt}
                   label="Campaña"
                   value={intent.campaign_title}
+                  testId="text-intent-campaign"
                 />
                 <DetailRow
                   icon={User}
                   label="Donante"
                   value={donorName}
+                  testId="text-intent-donor"
                 />
                 {!intent.is_anonymous && (
                   <DetailRow
                     icon={Mail}
                     label="Email"
                     value={intent.donor_email}
+                    testId="text-intent-email"
                   />
                 )}
                 <DetailRow
                   icon={RefreshCw}
                   label="Tipo"
                   value={getDonationTypeLabel(intent.donation_type, intent.recurring_interval)}
+                  testId="text-intent-donation-type"
                 />
                 <DetailRow
                   icon={Calendar}
                   label="Fecha"
                   value={formatDateTime(intent.created_at)}
+                  testId="text-intent-date"
                 />
                 {intent.donor_note && (
                   <DetailRow
                     icon={Receipt}
                     label="Nota"
                     value={intent.donor_note}
+                    testId="text-intent-note"
                   />
                 )}
               </CardContent>

@@ -252,7 +252,7 @@ export const insertDonationIntentSchema = z.object({
   donation_type: z.enum(['one_time', 'recurring'], { required_error: 'Tipo de donación requerido' }),
   recurring_interval: z.enum(['weekly', 'monthly', 'semiannual', 'yearly']).nullable().optional(),
   donor_first_name: z.string().min(1, 'Nombre requerido'),
-  donor_last_name: z.string().min(1, 'Apellido requerido'),
+  donor_last_name: z.string(),
   donor_email: z.string().email('Correo electrónico inválido'),
   donor_note: z.string().nullable().optional(),
   is_anonymous: z.boolean().default(false),
