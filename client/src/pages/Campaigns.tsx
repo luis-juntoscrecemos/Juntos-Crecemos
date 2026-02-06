@@ -20,7 +20,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { useToast } from '@/hooks/use-toast';
 import { campaignsApi } from '@/lib/api';
 import { getAccessToken } from '@/lib/supabase';
-import { insertCampaignSchema, type InsertCampaign, type CampaignWithTotals } from '@shared/schema';
+import { insertCampaignSchema, type InsertCampaign, type CampaignWithTotals, type Organization } from '@shared/schema';
 import { queryClient } from '@/lib/queryClient';
 
 function formatCurrency(amount: number, currency: string = 'COP'): string {
@@ -346,19 +346,22 @@ function CampaignForm({ campaign, onSuccess, onCancel }: CampaignFormProps) {
 
 interface CampaignCardProps {
   campaign: CampaignWithTotals;
+  orgSlug: string;
   onEdit: () => void;
   onDelete: () => void;
 }
 
-function CampaignCard({ campaign, onEdit, onDelete }: CampaignCardProps) {
+function CampaignCard({ campaign, orgSlug, onEdit, onDelete }: CampaignCardProps) {
   const { toast } = useToast();
   const [copied, setCopied] = useState(false);
   const progress = campaign.goal_amount 
     ? Math.min(100, (campaign.raised_minor / (campaign.goal_amount * 100)) * 100)
     : 0;
 
+  const donateUrl = `/donar/${orgSlug}/${campaign.slug}`;
+
   const copyUrl = () => {
-    const url = `${window.location.origin}/donar/${campaign.slug}`;
+    const url = `${window.location.origin}${donateUrl}`;
     navigator.clipboard.writeText(url);
     setCopied(true);
     toast({
@@ -414,8 +417,8 @@ function CampaignCard({ campaign, onEdit, onDelete }: CampaignCardProps) {
         </div>
       </CardContent>
       <CardFooter className="gap-2">
-        <Button size="sm" variant="outline" asChild>
-          <a href={`/donar/${campaign.slug}`} target="_blank" rel="noopener noreferrer">
+        <Button size="sm" variant="outline" asChild data-testid={`button-view-campaign-${campaign.id}`}>
+          <a href={donateUrl} target="_blank" rel="noopener noreferrer">
             <ExternalLink className="w-4 h-4 mr-1" />
             Ver página
           </a>
@@ -461,6 +464,12 @@ export default function CampaignsPage() {
   const { toast } = useToast();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingCampaign, setEditingCampaign] = useState<CampaignWithTotals | undefined>();
+
+  const { data: orgResponse } = useQuery<{ data?: Organization }>({
+    queryKey: ['/api/organizations/me'],
+  });
+
+  const orgSlug = orgResponse?.data?.slug || '';
 
   const { data: campaignsResponse, isLoading, error } = useQuery<{ data: CampaignWithTotals[] }>({
     queryKey: ['/api/campaigns'],
@@ -554,6 +563,7 @@ export default function CampaignsPage() {
             <CampaignCard
               key={campaign.id}
               campaign={campaign}
+              orgSlug={orgSlug}
               onEdit={() => openEditDialog(campaign)}
               onDelete={() => deleteMutation.mutate(campaign.id)}
             />

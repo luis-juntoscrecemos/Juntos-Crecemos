@@ -1,0 +1,42 @@
+TASK: Fix the “Ver página” button under “Campañas” so it navigates to an existing route and shows the selected campaign (no 404).
+
+CURRENT ISSUE
+- In the “Campañas” page, clicking “Ver página” redirects to a URL that does not exist and results in a 404.
+- Expected: Clicking “Ver página” should open the donor-facing public donation page for THAT specific campaign.
+
+IMPORTANT CONTEXT
+- The public donation route already exists and works as: `/donar/[campaign-name]`
+- “campaign-name” should be the campaign slug (URL-safe).
+- We must not introduce a new public route unless absolutely necessary. Use the existing `/donar/[campaign-slug]`.
+
+WHAT TO CHANGE
+1) Update the “Ver página” button link target:
+   - It MUST navigate to `/donar/{campaign.slug}`
+   - Do NOT link to any other route like `/campaigns/...` or `/campanas/...` unless those routes already exist.
+   - Open in a new tab (preferred) OR same tab (acceptable).
+
+2) Ensure `campaign.slug` is defined and URL-safe:
+   - Slug must be stored in the campaigns table and always present.
+   - If a campaign is missing a slug:
+     - Generate one from the title (lowercase, hyphens, remove accents/special chars)
+     - Save it to DB on campaign creation (and optionally backfill for existing campaigns).
+
+3) Ensure the campaigns list fetch returns the fields required for the button:
+   - id
+   - title
+   - slug
+   - status
+
+4) On `/donar/[campaign-name]` page:
+   - Confirm it fetches the campaign by slug and renders the campaign view.
+   - If the campaign is not found, show a friendly “Campaña no encontrada” state (not a generic 404).
+
+ACCEPTANCE CRITERIA
+- Clicking “Ver página” from any campaign row opens `/donar/{campaign.slug}` without a 404.
+- The page shows the correct campaign title/image/preset amounts for that campaign.
+- If the slug is missing, it is generated and persisted so the link works going forward.
+
+DELIVERABLES
+- Fix the button link in the Campañas list component.
+- Ensure slug exists for campaigns (creation + backfill script/migration if needed).
+- Verify `/donar/[campaign-name]` route uses slug lookup and renders campaign.
