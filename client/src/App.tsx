@@ -20,6 +20,7 @@ import DonationsPage from "@/pages/Donations";
 import DonationDetailPage from "@/pages/DonationDetail";
 import SettingsPage from "@/pages/Settings";
 import DonatePage from "@/pages/public/DonatePage";
+import DonationIntentDetailPage from "@/pages/public/DonationIntentDetail";
 
 import DonorLogin from "@/pages/donor/DonorLogin";
 import DonorRegister from "@/pages/donor/DonorRegister";
@@ -188,6 +189,10 @@ function Router() {
 
       <Route path="/donar/:orgSlug/:campaignSlug">
         <DonatePage />
+      </Route>
+
+      <Route path="/donaciones/:intentId">
+        <DonationIntentDetailPage />
       </Route>
 
       <Route path="/donor/login">

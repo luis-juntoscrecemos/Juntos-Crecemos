@@ -5,9 +5,11 @@ import type {
   CampaignWithTotals,
   Donation, 
   DonationDetail,
+  DonationIntentDetail,
   InsertOrganization,
   InsertCampaign,
   InsertDonation,
+  InsertDonationIntent,
   DashboardStats,
   DashboardOverview,
   DashboardSeriesPoint,
@@ -121,7 +123,7 @@ export const donationsApi = {
 // Public API (no auth required)
 export const publicApi = {
   getCampaign: (orgSlug: string, campaignSlug: string) =>
-    apiRequest<{ campaign: CampaignWithTotals; organization: Organization }>(
+    apiRequest<{ campaign: CampaignWithTotals; organization: Organization; processing_fee_percent: number }>(
       `/public/campaigns/${orgSlug}/${campaignSlug}`
     ),
   
@@ -130,6 +132,15 @@ export const publicApi = {
       method: 'POST',
       body: JSON.stringify(data),
     }),
+
+  createDonationIntent: (data: InsertDonationIntent) =>
+    apiRequest<{ intentId: string }>('/donation-intents', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  getDonationIntent: (id: string) =>
+    apiRequest<DonationIntentDetail>(`/public/donation-intents/${id}`),
 };
 
 // Dashboard

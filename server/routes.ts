@@ -2,7 +2,10 @@ import type { Express, Request } from "express";
 import { createServer, type Server } from "http";
 import { supabase, claimDonationsForDonor } from "./supabase";
 import { authMiddleware, optionalAuthMiddleware, donorAuthMiddleware, type AuthenticatedRequest } from "./middleware/auth";
+import { insertDonationIntentSchema } from "@shared/schema";
 import multer, { FileFilterCallback } from "multer";
+
+const PROCESSING_FEE_PERCENT = 4.5;
 
 // Configure multer for file uploads
 const upload = multer({
@@ -861,6 +864,7 @@ export async function registerRoutes(
         data: {
           campaign,
           organization: org,
+          processing_fee_percent: PROCESSING_FEE_PERCENT,
         },
       });
     } catch (error) {
@@ -919,6 +923,139 @@ export async function registerRoutes(
     } catch (error) {
       console.error('Create donation error:', error);
       res.status(500).json({ error: 'Error al procesar la donación' });
+    }
+  });
+
+  // ============================================
+  // Donation Intents (public, no auth)
+  // ============================================
+
+  app.post('/api/donation-intents', async (req, res) => {
+    try {
+      const parsed = insertDonationIntentSchema.safeParse(req.body);
+      if (!parsed.success) {
+        const firstError = parsed.error.errors[0];
+        return res.status(400).json({ error: firstError.message });
+      }
+
+      const {
+        campaign_slug,
+        org_slug,
+        amount,
+        cover_fees,
+        donation_type,
+        recurring_interval,
+        donor_first_name,
+        donor_last_name,
+        donor_email,
+        donor_note,
+        is_anonymous,
+      } = parsed.data;
+
+      if (donation_type === 'recurring' && !recurring_interval) {
+        return res.status(400).json({ error: 'Debes seleccionar una frecuencia para donaciones recurrentes' });
+      }
+
+      const { data: org, error: orgError } = await supabase
+        .from('organizations')
+        .select('id')
+        .eq('slug', org_slug)
+        .eq('status', 'active')
+        .single();
+
+      if (orgError || !org) {
+        return res.status(404).json({ error: 'Organización no encontrada' });
+      }
+
+      const { data: campaign, error: campaignError } = await supabase
+        .from('campaigns')
+        .select('id, org_id, is_active, currency')
+        .eq('slug', campaign_slug)
+        .eq('org_id', org.id)
+        .single();
+
+      if (campaignError || !campaign || !campaign.is_active) {
+        return res.status(400).json({ error: 'Campaña no válida o inactiva' });
+      }
+
+      const fee_percent = cover_fees ? PROCESSING_FEE_PERCENT : null;
+      const fee_amount = cover_fees ? Math.round(amount * PROCESSING_FEE_PERCENT / 100) : 0;
+      const total_amount = amount + fee_amount;
+
+      const { data: intent, error: insertError } = await supabase
+        .from('donation_intents')
+        .insert({
+          organization_id: campaign.org_id,
+          campaign_id: campaign.id,
+          amount,
+          currency: campaign.currency || 'COP',
+          cover_fees,
+          fee_percent,
+          fee_amount,
+          total_amount,
+          donation_type,
+          recurring_interval: donation_type === 'recurring' ? recurring_interval : null,
+          donor_first_name,
+          donor_last_name,
+          donor_email,
+          donor_note: donor_note || null,
+          is_anonymous,
+          status: 'pending',
+        })
+        .select('id')
+        .single();
+
+      if (insertError || !intent) {
+        console.error('Create donation intent error:', insertError?.message || insertError);
+        return res.status(500).json({ error: 'Error al crear la intención de donación' });
+      }
+
+      res.status(201).json({ data: { intentId: intent.id } });
+    } catch (error) {
+      console.error('Create donation intent error:', error);
+      res.status(500).json({ error: 'Error al crear la intención de donación' });
+    }
+  });
+
+  app.get('/api/public/donation-intents/:id', async (req, res) => {
+    try {
+      const { id } = req.params;
+
+      const { data: intent, error } = await supabase
+        .from('donation_intents')
+        .select('*')
+        .eq('id', id)
+        .single();
+
+      if (error || !intent) {
+        return res.status(404).json({ error: 'Intención de donación no encontrada' });
+      }
+
+      const { data: campaign } = await supabase
+        .from('campaigns')
+        .select('title, slug, image_url')
+        .eq('id', intent.campaign_id)
+        .single();
+
+      const { data: org } = await supabase
+        .from('organizations')
+        .select('name, slug')
+        .eq('id', intent.organization_id)
+        .single();
+
+      const detail = {
+        ...intent,
+        campaign_title: campaign?.title || null,
+        campaign_slug: campaign?.slug || null,
+        campaign_image_url: campaign?.image_url || null,
+        organization_name: org?.name || null,
+        organization_slug: org?.slug || null,
+      };
+
+      res.json({ data: detail });
+    } catch (error) {
+      console.error('Get donation intent error:', error);
+      res.status(500).json({ error: 'Error al obtener la intención de donación' });
     }
   });
 

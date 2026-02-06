@@ -1,31 +1,41 @@
 import { useState } from 'react';
-import { useRoute } from 'wouter';
+import { useRoute, useLocation } from 'wouter';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Heart, Shield, CheckCircle, Building2, ArrowLeft, RefreshCw } from 'lucide-react';
+import { Heart, Shield, CheckCircle, Building2, RefreshCw, MessageSquare, FileText, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import { Textarea } from '@/components/ui/textarea';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Switch } from '@/components/ui/switch';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { LoadingPage, LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { publicApi } from '@/lib/api';
 import type { CampaignWithTotals, Organization } from '@shared/schema';
 
-const donationSchema = z.object({
-  donor_name: z.string().min(2, 'Ingresa tu nombre').optional(),
-  donor_email: z.string().email('Correo inválido').optional(),
-  amount: z.number().positive('El monto debe ser mayor a 0'),
-  is_recurring: z.boolean().default(false),
+const MIN_AMOUNT = 5000;
+
+const donationIntentSchema = z.object({
+  amount: z.number().int('El monto debe ser un número entero').min(MIN_AMOUNT, `El monto mínimo es $${MIN_AMOUNT.toLocaleString('es-CO')} COP`),
+  donor_first_name: z.string().min(1, 'Nombre requerido'),
+  donor_last_name: z.string().min(1, 'Apellido requerido'),
+  donor_email: z.string().email('Correo electrónico inválido'),
+  donor_note: z.string().optional(),
   is_anonymous: z.boolean().default(false),
+  donation_type: z.enum(['one_time', 'recurring']).default('one_time'),
+  recurring_interval: z.enum(['weekly', 'monthly', 'semiannual', 'yearly']).nullable().optional(),
+  cover_fees: z.boolean().default(false),
+  terms_accepted: z.boolean(),
 });
 
-type DonationFormData = z.infer<typeof donationSchema>;
+type DonationIntentFormData = z.infer<typeof donationIntentSchema>;
 
 function formatCurrency(amount: number, currency: string = 'COP'): string {
   return new Intl.NumberFormat('es-CO', {
@@ -36,84 +46,117 @@ function formatCurrency(amount: number, currency: string = 'COP'): string {
   }).format(amount);
 }
 
+const CADENCE_LABELS: Record<string, string> = {
+  weekly: 'Semanal',
+  monthly: 'Mensual',
+  semiannual: 'Semestral',
+  yearly: 'Anual',
+};
+
 interface DonationFormProps {
   campaign: CampaignWithTotals;
   organization: Organization;
-  onSuccess: (email?: string) => void;
+  feePercent: number;
+  orgSlug: string;
 }
 
-function DonationForm({ campaign, organization, onSuccess }: DonationFormProps) {
+function DonationForm({ campaign, organization, feePercent, orgSlug }: DonationFormProps) {
+  const [, navigate] = useLocation();
   const [selectedAmount, setSelectedAmount] = useState<number | null>(null);
   const [customAmount, setCustomAmount] = useState('');
 
-  const suggestedAmounts = campaign.suggested_amounts || [100000, 500000, 1000000];
+  const suggestedAmounts: number[] = campaign.suggested_amounts || [];
 
-  const form = useForm<DonationFormData>({
-    resolver: zodResolver(donationSchema),
+  const form = useForm<DonationIntentFormData>({
+    resolver: zodResolver(donationIntentSchema),
     defaultValues: {
-      donor_name: '',
-      donor_email: '',
       amount: 0,
-      is_recurring: false,
+      donor_first_name: '',
+      donor_last_name: '',
+      donor_email: '',
+      donor_note: '',
       is_anonymous: false,
+      donation_type: 'one_time',
+      recurring_interval: null,
+      cover_fees: false,
+      terms_accepted: false,
     },
   });
 
   const createMutation = useMutation({
-    mutationFn: (data: DonationFormData) => 
-      publicApi.createDonation({
-        campaign_id: campaign.id,
-        org_id: organization.id,
-        donor_name: data.is_anonymous ? null : data.donor_name || null,
-        donor_email: data.donor_email || null,
-        amount_minor: data.amount * 100,
-        currency: campaign.currency,
-        is_recurring: data.is_recurring,
+    mutationFn: (data: DonationIntentFormData) => {
+      return publicApi.createDonationIntent({
+        campaign_slug: campaign.slug,
+        org_slug: orgSlug,
+        amount: data.amount,
+        cover_fees: data.cover_fees,
+        donation_type: data.donation_type,
+        recurring_interval: data.donation_type === 'recurring' ? data.recurring_interval ?? null : null,
+        donor_first_name: data.donor_first_name,
+        donor_last_name: data.donor_last_name,
+        donor_email: data.donor_email,
+        donor_note: data.donor_note || null,
         is_anonymous: data.is_anonymous,
-      }),
-    onSuccess: (_, variables) => {
-      onSuccess(variables.donor_email || undefined);
+        terms_accepted: true,
+      });
+    },
+    onSuccess: (response) => {
+      if (response.data?.intentId) {
+        navigate(`/donaciones/${response.data.intentId}`);
+      }
     },
   });
 
   const handleAmountSelect = (amount: number) => {
     setSelectedAmount(amount);
     setCustomAmount('');
-    form.setValue('amount', amount);
+    form.setValue('amount', amount, { shouldValidate: true });
   };
 
   const handleCustomAmountChange = (value: string) => {
     setCustomAmount(value);
     setSelectedAmount(null);
     const numValue = parseInt(value) || 0;
-    form.setValue('amount', numValue);
+    form.setValue('amount', numValue, { shouldValidate: true });
   };
 
-  const onSubmit = (data: DonationFormData) => {
+  const onSubmit = (data: DonationIntentFormData) => {
+    if (!data.terms_accepted) {
+      form.setError('terms_accepted', { message: 'Debes aceptar los términos' });
+      return;
+    }
     createMutation.mutate(data);
   };
 
-  const isAnonymous = form.watch('is_anonymous');
+  const watchAmount = form.watch('amount');
+  const watchCoverFees = form.watch('cover_fees');
+  const watchDonationType = form.watch('donation_type');
+  const watchAnonymous = form.watch('is_anonymous');
+
+  const feeAmount = watchCoverFees ? Math.round(watchAmount * feePercent / 100) : 0;
+  const totalAmount = watchAmount + feeAmount;
 
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
         <div className="space-y-3">
           <label className="text-sm font-medium">Selecciona un monto</label>
-          <div className="grid grid-cols-3 gap-2">
-            {suggestedAmounts.map((amount) => (
-              <Button
-                key={amount}
-                type="button"
-                variant={selectedAmount === amount ? 'default' : 'outline'}
-                className="h-auto py-3"
-                onClick={() => handleAmountSelect(amount)}
-                data-testid={`button-amount-${amount}`}
-              >
-                {formatCurrency(amount, campaign.currency)}
-              </Button>
-            ))}
-          </div>
+          {suggestedAmounts.length > 0 && (
+            <div className="grid grid-cols-3 gap-2">
+              {suggestedAmounts.map((amount) => (
+                <Button
+                  key={amount}
+                  type="button"
+                  variant={selectedAmount === amount ? 'default' : 'outline'}
+                  className="h-auto py-3"
+                  onClick={() => handleAmountSelect(amount)}
+                  data-testid={`button-amount-${amount}`}
+                >
+                  {formatCurrency(amount, campaign.currency)}
+                </Button>
+              ))}
+            </div>
+          )}
           <div className="relative">
             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
             <Input
@@ -126,7 +169,7 @@ function DonationForm({ campaign, organization, onSuccess }: DonationFormProps) 
             />
           </div>
           {form.formState.errors.amount && (
-            <p className="text-sm text-destructive">{form.formState.errors.amount.message}</p>
+            <p className="text-sm text-destructive" data-testid="text-error-amount">{form.formState.errors.amount.message}</p>
           )}
         </div>
 
@@ -137,22 +180,58 @@ function DonationForm({ campaign, organization, onSuccess }: DonationFormProps) 
             <div className="flex items-center gap-2">
               <RefreshCw className="w-4 h-4 text-muted-foreground" />
               <div>
-                <label className="text-sm font-medium">Donación mensual</label>
-                <p className="text-xs text-muted-foreground">Contribuir cada mes</p>
+                <label className="text-sm font-medium">Donación recurrente</label>
+                <p className="text-xs text-muted-foreground">Contribuir periódicamente</p>
               </div>
             </div>
             <FormField
               control={form.control}
-              name="is_recurring"
+              name="donation_type"
               render={({ field }) => (
-                <Switch 
-                  checked={field.value} 
-                  onCheckedChange={field.onChange}
+                <Switch
+                  checked={field.value === 'recurring'}
+                  onCheckedChange={(checked) => {
+                    field.onChange(checked ? 'recurring' : 'one_time');
+                    if (!checked) {
+                      form.setValue('recurring_interval', null);
+                    } else {
+                      form.setValue('recurring_interval', 'monthly');
+                    }
+                  }}
                   data-testid="switch-recurring"
                 />
               )}
             />
           </div>
+
+          {watchDonationType === 'recurring' && (
+            <FormField
+              control={form.control}
+              name="recurring_interval"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Frecuencia</FormLabel>
+                  <Select
+                    value={field.value || 'monthly'}
+                    onValueChange={field.onChange}
+                  >
+                    <FormControl>
+                      <SelectTrigger data-testid="select-cadence">
+                        <SelectValue placeholder="Selecciona frecuencia" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="weekly">Semanal</SelectItem>
+                      <SelectItem value="monthly">Mensual</SelectItem>
+                      <SelectItem value="semiannual">Semestral</SelectItem>
+                      <SelectItem value="yearly">Anual</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          )}
 
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -166,8 +245,8 @@ function DonationForm({ campaign, organization, onSuccess }: DonationFormProps) 
               control={form.control}
               name="is_anonymous"
               render={({ field }) => (
-                <Switch 
-                  checked={field.value} 
+                <Switch
+                  checked={field.value}
                   onCheckedChange={field.onChange}
                   data-testid="switch-anonymous"
                 />
@@ -178,53 +257,167 @@ function DonationForm({ campaign, organization, onSuccess }: DonationFormProps) 
 
         <Separator />
 
-        {!isAnonymous && (
-          <div className="space-y-4">
+        <div className="space-y-4">
+          {!watchAnonymous && (
+            <div className="grid grid-cols-2 gap-3">
+              <FormField
+                control={form.control}
+                name="donor_first_name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Nombre</FormLabel>
+                    <FormControl>
+                      <Input
+                        {...field}
+                        placeholder="Juan"
+                        data-testid="input-first-name"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="donor_last_name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Apellido</FormLabel>
+                    <FormControl>
+                      <Input
+                        {...field}
+                        placeholder="Pérez"
+                        data-testid="input-last-name"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+          )}
+
+          <FormField
+            control={form.control}
+            name="donor_email"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Correo electrónico</FormLabel>
+                <FormControl>
+                  <Input
+                    {...field}
+                    type="email"
+                    placeholder="tu@email.com"
+                    data-testid="input-donor-email"
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="donor_note"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel className="flex items-center gap-1.5">
+                  <MessageSquare className="w-3.5 h-3.5" />
+                  Nota o mensaje (opcional)
+                </FormLabel>
+                <FormControl>
+                  <Textarea
+                    {...field}
+                    placeholder="Escribe un mensaje para la organización..."
+                    className="resize-none"
+                    rows={2}
+                    data-testid="input-donor-note"
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+
+        <Separator />
+
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Heart className="w-4 h-4 text-muted-foreground" />
+              <div>
+                <label className="text-sm font-medium">Cubrir tarifas de procesamiento</label>
+                <p className="text-xs text-muted-foreground">
+                  Agrega {feePercent}% para cubrir los costos
+                </p>
+              </div>
+            </div>
             <FormField
               control={form.control}
-              name="donor_name"
+              name="cover_fees"
               render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Tu nombre</FormLabel>
-                  <FormControl>
-                    <Input 
-                      {...field} 
-                      placeholder="Juan Pérez" 
-                      data-testid="input-donor-name"
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
+                <Switch
+                  checked={field.value}
+                  onCheckedChange={field.onChange}
+                  data-testid="switch-cover-fees"
+                />
               )}
             />
           </div>
-        )}
+
+          {watchCoverFees && watchAmount > 0 && (
+            <div className="bg-muted/50 rounded-md p-3 space-y-1.5 text-sm" data-testid="text-fee-breakdown">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Donación</span>
+                <span>{formatCurrency(watchAmount, campaign.currency)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Tarifa ({feePercent}%)</span>
+                <span>{formatCurrency(feeAmount, campaign.currency)}</span>
+              </div>
+              <Separator />
+              <div className="flex justify-between font-semibold">
+                <span>Total</span>
+                <span data-testid="text-fee-total">{formatCurrency(totalAmount, campaign.currency)}</span>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <Separator />
 
         <FormField
           control={form.control}
-          name="donor_email"
+          name="terms_accepted"
           render={({ field }) => (
-            <FormItem>
-              <FormLabel>Correo electrónico</FormLabel>
+            <FormItem className="flex flex-row items-start gap-3">
               <FormControl>
-                <Input 
-                  {...field} 
-                  type="email" 
-                  placeholder="tu@email.com" 
-                  data-testid="input-donor-email"
+                <Checkbox
+                  checked={field.value}
+                  onCheckedChange={field.onChange}
+                  data-testid="checkbox-terms"
                 />
               </FormControl>
-              <FormMessage />
+              <div className="space-y-1 leading-none">
+                <FormLabel className="text-sm font-normal cursor-pointer">
+                  <span className="flex items-center gap-1">
+                    <FileText className="w-3.5 h-3.5 flex-shrink-0" />
+                    Acepto los Términos y Condiciones y la Política de Privacidad
+                  </span>
+                </FormLabel>
+                <FormMessage />
+              </div>
             </FormItem>
           )}
         />
 
-        <Button 
-          type="submit" 
-          className="w-full" 
+        <Button
+          type="submit"
+          className="w-full"
           size="lg"
-          disabled={createMutation.isPending || !form.watch('amount')}
-          data-testid="button-donate"
+          disabled={createMutation.isPending || !watchAmount}
+          data-testid="button-continue"
         >
           {createMutation.isPending ? (
             <>
@@ -233,15 +426,21 @@ function DonationForm({ campaign, organization, onSuccess }: DonationFormProps) 
             </>
           ) : (
             <>
-              <Heart className="w-4 h-4 mr-2" />
-              Donar {form.watch('amount') > 0 && formatCurrency(form.watch('amount'), campaign.currency)}
+              Continuar
+              <ChevronRight className="w-4 h-4 ml-1" />
             </>
           )}
         </Button>
 
         {createMutation.isError && (
-          <p className="text-sm text-destructive text-center">
+          <p className="text-sm text-destructive text-center" data-testid="text-submit-error">
             Error al procesar la donación. Por favor, intenta de nuevo.
+          </p>
+        )}
+
+        {(createMutation as any).data?.error && (
+          <p className="text-sm text-destructive text-center" data-testid="text-submit-error">
+            {(createMutation as any).data.error}
           </p>
         )}
 
@@ -254,67 +453,8 @@ function DonationForm({ campaign, organization, onSuccess }: DonationFormProps) 
   );
 }
 
-function SuccessScreen({ 
-  campaign, 
-  organization, 
-  donorEmail 
-}: { 
-  campaign: CampaignWithTotals; 
-  organization: Organization;
-  donorEmail?: string;
-}) {
-  return (
-    <div className="text-center py-8 space-y-6">
-      <div className="w-20 h-20 rounded-full bg-success/10 flex items-center justify-center mx-auto">
-        <CheckCircle className="w-10 h-10 text-success" />
-      </div>
-      <div>
-        <h2 className="text-2xl font-bold text-success">¡Gracias por tu donación!</h2>
-        <p className="text-muted-foreground mt-2">
-          Tu contribución a "{campaign.title}" ayuda a {organization.name} a continuar su misión.
-        </p>
-      </div>
-      <div className="bg-muted rounded-lg p-4 max-w-sm mx-auto">
-        <p className="text-sm text-muted-foreground">
-          Recibirás un correo de confirmación con los detalles de tu donación.
-        </p>
-      </div>
-      
-      <Separator className="my-4" />
-      
-      <div className="bg-primary/5 border border-primary/20 rounded-lg p-4 max-w-sm mx-auto">
-        <Heart className="w-8 h-8 text-primary mx-auto mb-2" />
-        <h3 className="font-semibold text-sm">Crea tu cuenta de donante</h3>
-        <p className="text-xs text-muted-foreground mt-1 mb-3">
-          Accede a tu historial de donaciones y organizaciones favoritas
-        </p>
-        <Button 
-          asChild 
-          className="w-full"
-          data-testid="button-create-donor-account"
-        >
-          <a href={`/donor/login${donorEmail ? `?email=${encodeURIComponent(donorEmail)}` : ''}`}>
-            <Heart className="w-4 h-4 mr-2" />
-            Ver mi historial de donaciones
-          </a>
-        </Button>
-      </div>
-      
-      <Button 
-        variant="outline" 
-        onClick={() => window.location.reload()}
-        data-testid="button-donate-again"
-      >
-        Hacer otra donación
-      </Button>
-    </div>
-  );
-}
-
 export default function DonatePage() {
   const [, params] = useRoute('/donar/:orgSlug/:campaignSlug');
-  const [showSuccess, setShowSuccess] = useState(false);
-  const [donorEmail, setDonorEmail] = useState<string | undefined>();
 
   const orgSlug = params?.orgSlug || '';
   const campaignSlug = params?.campaignSlug || '';
@@ -341,7 +481,7 @@ export default function DonatePage() {
             <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mx-auto mb-4">
               <Heart className="w-8 h-8 text-muted-foreground" />
             </div>
-            <h2 className="text-xl font-semibold mb-2">Campaña no encontrada</h2>
+            <h2 className="text-xl font-semibold mb-2" data-testid="text-campaign-not-found">Campaña no encontrada</h2>
             <p className="text-muted-foreground">
               La campaña que buscas no existe o ya no está disponible.
             </p>
@@ -351,15 +491,15 @@ export default function DonatePage() {
     );
   }
 
-  const { campaign, organization } = response.data;
-  const progress = campaign.goal_amount 
+  const { campaign, organization, processing_fee_percent } = response.data;
+  const progress = campaign.goal_amount
     ? Math.min(100, (campaign.raised_minor / (campaign.goal_amount * 100)) * 100)
     : 0;
 
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b bg-card">
-        <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
+        <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between flex-wrap gap-2">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-md bg-primary flex items-center justify-center">
               <span className="text-primary-foreground font-bold">
@@ -367,7 +507,7 @@ export default function DonatePage() {
               </span>
             </div>
             <div>
-              <p className="font-semibold text-sm">{organization.name}</p>
+              <p className="font-semibold text-sm" data-testid="text-org-name">{organization.name}</p>
               {organization.verified && (
                 <Badge variant="secondary" className="text-xs">
                   <CheckCircle className="w-3 h-3 mr-1" />
@@ -383,17 +523,28 @@ export default function DonatePage() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           <div className="space-y-6">
             <div>
-              <h1 className="text-3xl font-bold">{campaign.title}</h1>
+              <h1 className="text-3xl font-bold" data-testid="text-campaign-title">{campaign.title}</h1>
               {campaign.description && (
-                <p className="text-muted-foreground mt-3">{campaign.description}</p>
+                <p className="text-muted-foreground mt-3" data-testid="text-campaign-description">{campaign.description}</p>
               )}
             </div>
 
+            {campaign.image_url && (
+              <div className="rounded-md overflow-hidden">
+                <img
+                  src={campaign.image_url}
+                  alt={campaign.title}
+                  className="w-full h-auto object-cover max-h-64"
+                  data-testid="img-campaign"
+                />
+              </div>
+            )}
+
             <Card>
               <CardContent className="p-6 space-y-4">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between flex-wrap gap-2">
                   <div>
-                    <p className="text-2xl font-bold text-primary">
+                    <p className="text-2xl font-bold text-primary" data-testid="text-raised-amount">
                       {formatCurrency(campaign.raised_minor / 100, campaign.currency)}
                     </p>
                     {campaign.goal_amount && (
@@ -403,7 +554,7 @@ export default function DonatePage() {
                     )}
                   </div>
                   <div className="text-right">
-                    <p className="text-2xl font-bold">{campaign.donations_count}</p>
+                    <p className="text-2xl font-bold" data-testid="text-donations-count">{campaign.donations_count}</p>
                     <p className="text-sm text-muted-foreground">donantes</p>
                   </div>
                 </div>
@@ -445,18 +596,12 @@ export default function DonatePage() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                {showSuccess ? (
-                  <SuccessScreen campaign={campaign} organization={organization} donorEmail={donorEmail} />
-                ) : (
-                  <DonationForm 
-                    campaign={campaign} 
-                    organization={organization}
-                    onSuccess={(email) => {
-                      setDonorEmail(email);
-                      setShowSuccess(true);
-                    }}
-                  />
-                )}
+                <DonationForm
+                  campaign={campaign}
+                  organization={organization}
+                  feePercent={processing_fee_percent}
+                  orgSlug={orgSlug}
+                />
               </CardContent>
             </Card>
           </div>

@@ -222,6 +222,53 @@ export interface DonationDetail extends Donation {
   organization_name: string | null;
 }
 
+// Donation Intents
+export interface DonationIntent {
+  id: string;
+  organization_id: string;
+  campaign_id: string;
+  amount: number;
+  currency: string;
+  cover_fees: boolean;
+  fee_percent: number | null;
+  fee_amount: number;
+  total_amount: number;
+  donation_type: string;
+  recurring_interval: string | null;
+  donor_first_name: string;
+  donor_last_name: string;
+  donor_email: string;
+  donor_note: string | null;
+  is_anonymous: boolean;
+  status: string;
+  created_at: string;
+}
+
+export const insertDonationIntentSchema = z.object({
+  campaign_slug: z.string().min(1, 'Campaña requerida'),
+  org_slug: z.string().min(1, 'Organización requerida'),
+  amount: z.number().int('El monto debe ser un número entero').min(5000, 'El monto mínimo es $5.000 COP'),
+  cover_fees: z.boolean().default(false),
+  donation_type: z.enum(['one_time', 'recurring'], { required_error: 'Tipo de donación requerido' }),
+  recurring_interval: z.enum(['weekly', 'monthly', 'semiannual', 'yearly']).nullable().optional(),
+  donor_first_name: z.string().min(1, 'Nombre requerido'),
+  donor_last_name: z.string().min(1, 'Apellido requerido'),
+  donor_email: z.string().email('Correo electrónico inválido'),
+  donor_note: z.string().nullable().optional(),
+  is_anonymous: z.boolean().default(false),
+  terms_accepted: z.literal(true, { errorMap: () => ({ message: 'Debes aceptar los términos' }) }),
+});
+
+export type InsertDonationIntent = z.infer<typeof insertDonationIntentSchema>;
+
+export interface DonationIntentDetail extends DonationIntent {
+  campaign_title: string | null;
+  campaign_slug: string | null;
+  campaign_image_url: string | null;
+  organization_name: string | null;
+  organization_slug: string | null;
+}
+
 // API Response types
 export interface ApiResponse<T> {
   data?: T;

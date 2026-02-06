@@ -1,0 +1,150 @@
+TASK: Implement processor-agnostic Donation Intent flow for the public donation route.
+
+CURRENT STATE
+- The public donation route already exists: `/donar/[campaign-name]` (do NOT change the route).
+- We have Supabase for DB/Auth. The donation form is public (no login required).
+
+GOAL
+On `/donar/[campaign-name]`:
+1) Fetch and display campaign config: title, optional image, and preset donation amounts.
+2) Validate donor input and create a `donation_intent` record in Supabase (no payment processor yet).
+3) Redirect to `/donaciones/[intentId]` which shows a donation summary (pending payment).
+4) Provide a transaction detail page pattern consistent with our dashboard expectation (transaction id drill-down). For now, `/donaciones/[intentId]` IS the “transaction detail” for intents.
+
+SCOPE (WHAT TO BUILD)
+
+A) FETCH CAMPAIGN CONFIG (on `/donar/[campaign-name]`)
+- Find the campaign by its slug/name from the route param `[campaign-name]`.
+- Fetch:
+  - campaign.title
+  - campaign.slug
+  - campaign.image_url (optional)
+  - campaign.description (optional)
+  - campaign.preset_amounts (array) OR campaign.suggested_amounts (array)
+  - campaign.organization_id (needed for donation_intent)
+- UI:
+  - Show title at top
+  - Show image right below title if present
+  - Render preset donation amount buttons at the top of the form
+  - Include “Otro monto” custom amount input
+
+IMPORTANT:
+- The preset amounts must be driven by the campaign record (editable at campaign level), NOT hardcoded.
+- Provide clear empty states if campaign not found.
+
+B) DONATION FORM FIELDS (NO PAYMENT PROCESSOR)
+Required fields:
+- Amount:
+  - selected preset OR custom amount
+- First Name
+- Last Name
+- Email address
+Optional fields:
+- Notes/message
+- Anonymous donation toggle (boolean, default false)
+Donation type:
+- Toggle: One-time / Recurring (default One-time)
+- If Recurring: cadence options: weekly, monthly (default), semiannual, yearly
+Processing fee coverage:
+- Toggle: “Quiero cubrir las tarifas de procesamiento” (boolean)
+- When toggled on, compute and display a breakdown:
+  - Donation amount
+  - Fee amount
+  - Total (amount + fee)
+Configuration for fee:
+- Do NOT hardcode the percentage in the UI.
+- Pull from a config source. Choose one:
+  1) `organizations.processing_fee_percent` (preferred)
+  2) A single app-level constant in env/config (acceptable for now)
+- Compute:
+  - fee_amount = round(amount * percent, currency rules)
+  - total_amount = amount + fee_amount
+
+Compliance:
+- Required checkbox: “Acepto Términos y Privacidad” (must be checked to submit)
+
+Submit button label:
+- “Continuar” (NOT “Pagar” since no payment yet)
+
+C) VALIDATION RULES
+- Amount must be a positive integer (COP) and >= a minimum (set min = 5000 COP unless a constant exists already)
+- Email must be valid format
+- First/Last name required (min 1 char)
+- If recurring selected, cadence must be one of the allowed values
+- If campaign not found, block submission
+- Show friendly Spanish error messages inline
+
+D) DATABASE: CREATE `donation_intent`
+Create a new Supabase table `donation_intents` (or if an existing donations table exists, create intents there with `status='pending'`—but prefer a dedicated table).
+
+Table fields (minimum viable):
+- id (uuid, pk, default gen_random_uuid())
+- organization_id (uuid, not null)
+- campaign_id (uuid, not null)
+- amount (integer, not null)            -- base donation amount in COP
+- currency (text, not null, default 'COP')
+- cover_fees (boolean, not null, default false)
+- fee_percent (numeric/float, nullable) -- snapshot of percent used
+- fee_amount (integer, not null, default 0)
+- total_amount (integer, not null)      -- amount + fee_amount
+- donation_type (text, not null)        -- 'one_time' | 'recurring'
+- recurring_interval (text, nullable)   -- 'weekly'|'monthly'|'semiannual'|'yearly'
+- donor_first_name (text, not null)
+- donor_last_name (text, not null)
+- donor_email (text, not null)
+- donor_note (text, nullable)
+- is_anonymous (boolean, not null, default false)
+- status (text, not null, default 'pending') -- pending/paid/failed/cancelled (future)
+- created_at (timestamptz, not null, default now())
+
+Indexes:
+- campaign_id, organization_id, created_at
+
+Security:
+- This route is public, so insertion must be allowed safely.
+- Implement insert via a server route/API that validates inputs (recommended) rather than exposing open public insert with weak RLS.
+- If you must use RLS for public inserts, use a restrictive policy and validate server-side anyway.
+Preferred approach:
+- Create an API endpoint: POST `/api/donation-intents`
+  - It receives the form payload + campaign slug
+  - It resolves campaign_id + organization_id
+  - It validates everything
+  - It inserts into donation_intents
+  - It returns `{ intentId }`
+
+E) SUMMARY / DETAIL PAGE: `/donaciones/[intentId]`
+Build a new public page route `/donaciones/[intentId]` that:
+- Fetches the donation_intent by id
+- Joins campaign to display campaign title (and optionally image)
+- Displays a clean “Resumen de donación” with:
+  - Transaction/Intent ID (show it prominently)
+  - Campaign
+  - Donor name (or “Anónimo” if is_anonymous=true)
+  - Amount, fee amount (if cover_fees), and total amount
+  - Donation type + recurring interval (if recurring)
+  - Status badge: “Pendiente” (since no payment processor)
+  - Created date/time
+- Provide button/link: “Volver a la campaña” linking back to `/donar/[campaign-name]`
+- Optional: “Compartir” copy link button
+- IMPORTANT: This page should work for public users without auth.
+
+F) WIRING / NAVIGATION
+- On successful create donation_intent, redirect from `/donar/[campaign-name]` to `/donaciones/[intentId]`.
+- Ensure the dashboard/admin “Recent Donations” transaction drill-down pattern can later link to this same page (or a future internal transaction page). For now, treat intentId as transaction id.
+
+ACCEPTANCE CRITERIA
+- Visiting `/donar/[campaign-name]` loads campaign title/image and preset amounts from DB.
+- Selecting a preset or entering a custom amount works.
+- Submitting creates a donation_intent record with correct computed fee fields and type fields.
+- User is redirected to `/donaciones/[intentId]` and sees the correct summary.
+- Validation errors show in Spanish and prevent DB insert.
+- No payment processor UI is added.
+
+DELIVERABLES
+- Updated `/donar/[campaign-name]` page with fetched campaign config + form
+- New API endpoint for creating donation intents (server-side validation)
+- New `/donaciones/[intentId]` public summary/detail page
+- SQL migration (or Supabase SQL) to create `donation_intents` table + indexes
+- Any required updates to existing campaign schema to store preset amounts and image URL (include SQL if needed)
+
+Please implement now and keep code consistent with our existing project patterns (components, styling, data fetching, error handling).
