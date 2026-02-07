@@ -569,17 +569,18 @@ export async function registerRoutes(
         return res.status(400).json({ error: 'Debes tener una organización para crear campañas' });
       }
 
-      const { title, slug, description, goal_amount, currency, is_active, suggested_amounts: rawAmounts } = req.body;
-      const suggested_amounts = rawAmounts ? (typeof rawAmounts === 'string' ? JSON.parse(rawAmounts) : rawAmounts) : null;
-      let imageUrl = null;
+      const body = req.body;
+      const suggested_amounts = body.suggested_amounts ? (typeof body.suggested_amounts === 'string' ? JSON.parse(body.suggested_amounts) : body.suggested_amounts) : null;
+      const recurring_intervals = body.recurring_intervals ? (typeof body.recurring_intervals === 'string' ? JSON.parse(body.recurring_intervals) : body.recurring_intervals) : null;
 
+      let parsedGoal = null;
+      if (body.goal_amount && body.goal_amount !== '' && body.goal_amount !== 'null') {
+        const parsed = parseInt(body.goal_amount, 10);
+        if (!isNaN(parsed) && parsed > 0) parsedGoal = parsed;
+      }
+
+      let imageUrl = null;
       if (req.file) {
-        console.log('Received file for campaign creation:', {
-          originalname: req.file.originalname,
-          mimetype: req.file.mimetype,
-          size: req.file.size,
-        });
-        
         try {
           const fileExt = req.file.originalname.split('.').pop() || 'png';
           const filePath = `${req.organizationId}/campaigns/${Date.now()}.${fileExt}`;
@@ -591,37 +592,44 @@ export async function registerRoutes(
               upsert: true,
             });
 
-          if (uploadError) {
-            console.error('Storage upload error:', uploadError);
-          } else {
+          if (!uploadError) {
             const { data: urlData } = supabase.storage
               .from('campaign-images')
               .getPublicUrl(filePath);
             imageUrl = urlData.publicUrl;
-            console.log('Image uploaded successfully, URL:', imageUrl);
+          } else {
+            console.error('Storage upload error:', uploadError);
           }
         } catch (err) {
           console.error('Image upload error:', err);
         }
-      } else {
-        console.log('No file received for campaign creation');
       }
 
-      console.log('Creating campaign with image_url:', imageUrl);
+      const insertObj: Record<string, any> = {
+        org_id: req.organizationId,
+        title: body.title,
+        slug: body.slug,
+        description: body.description,
+        goal_amount: parsedGoal,
+        currency: body.currency || 'COP',
+        is_active: body.is_active === 'true' || body.is_active === true || body.is_active === undefined,
+        suggested_amounts,
+        image_url: imageUrl,
+      };
+
+      if (body.allow_recurring !== undefined) {
+        insertObj.allow_recurring = body.allow_recurring === 'true' || body.allow_recurring === true;
+      }
+      if (recurring_intervals !== null) {
+        insertObj.recurring_intervals = recurring_intervals;
+      }
+      if (body.default_recurring_interval) {
+        insertObj.default_recurring_interval = body.default_recurring_interval;
+      }
 
       const { data, error } = await supabase
         .from('campaigns')
-        .insert({
-          org_id: req.organizationId,
-          title,
-          slug,
-          description,
-          goal_amount,
-          currency: currency || 'COP',
-          is_active: is_active ?? true,
-          suggested_amounts,
-          image_url: imageUrl,
-        })
+        .insert(insertObj)
         .select()
         .single();
 
@@ -643,18 +651,49 @@ export async function registerRoutes(
   app.patch('/api/campaigns/:id', authMiddleware, upload.single('image'), async (req: AuthenticatedRequest & { file?: Express.Multer.File }, res) => {
     try {
       const { id } = req.params;
-      const { title, slug, description, goal_amount, currency, is_active, suggested_amounts: rawAmounts, image_url } = req.body;
-      const suggested_amounts = rawAmounts ? (typeof rawAmounts === 'string' ? JSON.parse(rawAmounts) : rawAmounts) : null;
-      
-      let imageUrl = image_url;
+      const body = req.body;
+
+      const updateObj: Record<string, any> = {
+        updated_at: new Date().toISOString(),
+      };
+
+      if (body.title !== undefined) updateObj.title = body.title;
+      if (body.slug !== undefined) updateObj.slug = body.slug;
+      if (body.description !== undefined) updateObj.description = body.description;
+      if (body.currency !== undefined) updateObj.currency = body.currency;
+
+      if (body.goal_amount !== undefined) {
+        if (body.goal_amount === '' || body.goal_amount === 'null') {
+          updateObj.goal_amount = null;
+        } else {
+          const parsed = parseInt(body.goal_amount, 10);
+          updateObj.goal_amount = isNaN(parsed) ? null : parsed;
+        }
+      }
+
+      if (body.is_active !== undefined) {
+        updateObj.is_active = body.is_active === 'true' || body.is_active === true;
+      }
+
+      if (body.suggested_amounts !== undefined) {
+        const raw = body.suggested_amounts;
+        updateObj.suggested_amounts = raw ? (typeof raw === 'string' ? JSON.parse(raw) : raw) : null;
+      }
+
+      if (body.allow_recurring !== undefined) {
+        updateObj.allow_recurring = body.allow_recurring === 'true' || body.allow_recurring === true;
+      }
+
+      if (body.recurring_intervals !== undefined) {
+        const raw = body.recurring_intervals;
+        updateObj.recurring_intervals = raw ? (typeof raw === 'string' ? JSON.parse(raw) : raw) : null;
+      }
+
+      if (body.default_recurring_interval !== undefined) {
+        updateObj.default_recurring_interval = body.default_recurring_interval || null;
+      }
 
       if (req.file) {
-        console.log('Received file for campaign update:', {
-          originalname: req.file.originalname,
-          mimetype: req.file.mimetype,
-          size: req.file.size,
-        });
-        
         try {
           const fileExt = req.file.originalname.split('.').pop() || 'png';
           const filePath = `${req.organizationId}/campaigns/${Date.now()}.${fileExt}`;
@@ -672,34 +711,18 @@ export async function registerRoutes(
             const { data: urlData } = supabase.storage
               .from('campaign-images')
               .getPublicUrl(filePath);
-            imageUrl = urlData.publicUrl;
-            console.log('Image uploaded successfully, URL:', imageUrl);
+            updateObj.image_url = urlData.publicUrl;
           }
         } catch (err) {
           console.error('Image upload error:', err);
         }
-      } else if (image_url === '') {
-        console.log('Explicit image removal requested');
-        imageUrl = null;
-      } else {
-        console.log('No new file received for campaign update, preserving image_url:', imageUrl);
+      } else if (body.remove_image === 'true') {
+        updateObj.image_url = null;
       }
-
-      console.log('Updating campaign with image_url:', imageUrl);
 
       const { data, error } = await supabase
         .from('campaigns')
-        .update({
-          title,
-          slug,
-          description,
-          goal_amount,
-          currency,
-          is_active,
-          suggested_amounts,
-          image_url: imageUrl,
-          updated_at: new Date().toISOString(),
-        })
+        .update(updateObj)
         .eq('id', id)
         .eq('org_id', req.organizationId)
         .select()

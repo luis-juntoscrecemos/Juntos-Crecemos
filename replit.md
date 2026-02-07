@@ -43,14 +43,15 @@ shared/
 └── schema.ts             # TypeScript types (includes DonorAccount, Favorite, DonorDashboardStats)
 docs/
 ├── supabase-setup.sql    # Initial Supabase setup (storage, orgs RLS)
-└── donor-dashboard-setup.sql  # Donor tables, RLS policies, claim function
+├── donor-dashboard-setup.sql  # Donor tables, RLS policies, claim function
+└── recurring-migration.sql    # Add recurring donation columns to campaigns
 ```
 
 ## Database Schema (Supabase)
 Core tables:
 - **organizations**: NGO profiles (name, email, slug, country, city, verified, status)
 - **organization_users**: Links auth users to organizations (user_id, organization_id, role)
-- **campaigns**: Fundraising campaigns (title, slug, description, goal_amount, is_active)
+- **campaigns**: Fundraising campaigns (title, slug, description, goal_amount, is_active, suggested_amounts, image_url, allow_recurring, recurring_intervals, default_recurring_interval)
 - **campaigns_with_totals**: View with raised_minor and donations_count
 - **donations**: Individual donations (amount_minor, currency, status, donor_name, donor_email, is_recurring, is_anonymous, donor_account_id)
 - **donor_accounts**: Donor user accounts linked to auth.users (auth_user_id, email, full_name, email_verified)
@@ -159,3 +160,7 @@ Run `docs/donor-dashboard-setup.sql` in Supabase Dashboard to create:
 - Add donor_account_id column to donations
 - RLS policies for donor access
 - claim_donations_for_donor() function
+
+Run `docs/recurring-migration.sql` in Supabase Dashboard to add:
+- allow_recurring, recurring_intervals, default_recurring_interval columns to campaigns table
+- These columns are optional; the app gracefully degrades if they don't exist

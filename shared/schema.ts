@@ -58,6 +58,9 @@ export interface Campaign {
   is_active: boolean;
   suggested_amounts: number[] | null;
   image_url: string | null;
+  allow_recurring: boolean;
+  recurring_intervals: string[] | null;
+  default_recurring_interval: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -76,6 +79,9 @@ export const insertCampaignSchema = z.object({
   is_active: z.boolean().default(true),
   suggested_amounts: z.array(z.number()).nullable().optional(),
   image_url: z.string().url().nullable().optional(),
+  allow_recurring: z.boolean().default(false),
+  recurring_intervals: z.array(z.string()).nullable().optional(),
+  default_recurring_interval: z.string().nullable().optional(),
 });
 
 export type InsertCampaign = z.infer<typeof insertCampaignSchema>;

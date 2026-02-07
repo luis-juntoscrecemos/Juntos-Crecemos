@@ -1,0 +1,114 @@
+TASK: Fix campaign edit save bugs + improve suggested amounts UX + prevent image loss + add % progress display + add recurring interval editor.
+
+CONTEXT
+- We have an admin “Edit campaign” view/card where org admins can update campaign fields (title, goal, image, preset amounts, etc.).
+- Preset “Cantidades sugeridas” chips work, but we need UX improvements + persistence fixes.
+- Donations are recorded and used to compute progress/analytics.
+
+ISSUES TO FIX (REQUIRED)
+
+1) GOAL INPUT WILL NOT CLEAR / DOES NOT SAVE
+Problem:
+- In the “Meta/Goal” input, if I try to delete the value (clear the field), the numbers reappear.
+- Also, changes to goal are not saving.
+
+Likely cause:
+- Controlled input is bound to a numeric state and forced through parseInt on every keystroke, so empty string becomes NaN and the UI resets to the previous value.
+- Save handler may not be including `goal_amount` in the update payload, or update is failing silently.
+
+Fix requirements:
+- Treat goal input as a string while editing (local state `goalDraft: string`).
+- Allow empty string while typing.
+- On blur or on Save:
+  - Validate: required and > 0 (or decide whether empty is invalid)
+  - Convert to integer and persist to DB as `goal_amount`.
+- Ensure the update mutation includes `goal_amount` and shows success/error toast.
+Acceptance:
+- I can clear the field while typing.
+- Entering a new goal and clicking Save persists it. Refresh shows the new goal.
+
+2) MOVE “CANTIDADES SUGERIDAS” SECTION UNDER TITLE + IMPROVE CUSTOM AMOUNTS CHIPS
+Requirements:
+- Move the entire “Cantidades sugeridas” section to immediately below the “Campaign title” field (top of the edit card).
+- Custom amounts:
+  - When I add a custom amount, it should appear as a green chip like the preset chips.
+  - It must be toggleable on/off (selected/unselected) like the presets.
+  - It must also keep an “x” remove icon so it can be removed entirely (to avoid overcrowding).
+- Data rules:
+  - The campaign’s saved `preset_amounts` is the set of “enabled/selected” chips.
+  - If a chip is toggled off, it should NOT be included in `preset_amounts` (or store it separately—see below).
+Implementation suggestion (choose one):
+Option A (Simple):
+  - Keep only one list: `preset_amounts` (selected amounts).
+  - Custom amount input adds the number directly into `preset_amounts`.
+  - Toggling off removes from `preset_amounts` (but chip can still show as “available” only if we keep a second list).
+Option B (Better UX):
+  - Maintain two lists in UI state:
+    - `available_amounts` (all chips shown: presets + custom added)
+    - `preset_amounts` (selected/enabled amounts saved to DB)
+  - Custom adds to `available_amounts`; toggle controls membership in `preset_amounts`; “x” removes from available (and from preset_amounts if present).
+If DB schema doesn’t support `available_amounts`, keep it UI-only and reconstruct from presets + custom list in local state. If you must persist it, add `available_amounts` jsonb.
+
+Acceptance:
+- Suggested amounts section appears directly under title.
+- Custom added amounts appear as green chips.
+- Custom chips can be toggled on/off and can be removed with “x”.
+- Public page `/donar/[campaign-slug]` uses the saved selected amounts.
+
+3) CAMPAIGN PICTURE DISAPPEARS AFTER SAVING AMOUNTS (TROUBLESHOOT)
+Problem:
+- After adding a new amount and saving, the campaign image disappears.
+
+Likely causes:
+- Update call overwrites the whole campaign object and sets `image_url` to null/undefined because it wasn’t included in the payload.
+- Form state for image_url is not initialized properly, or Save uses a partial object but incorrectly sets missing fields.
+
+Fix requirements:
+- Update logic must be PATCH-like:
+  - Only update changed fields, OR
+  - Always include the existing `image_url` when saving other fields.
+- Verify image_url is read from DB and stored in state on load.
+- Ensure the image upload/URL field persists and does not get cleared by unrelated saves.
+Acceptance:
+- Editing/saving amounts does not remove the image.
+- Image remains visible after refresh.
+
+4) SHOW CAMPAIGN PROGRESS % ON:
+   - Campaign card in the DASHBOARD
+   - Donation form page
+And keep it correct even if the goal changes.
+Requirements:
+- Display “{percent}% completado” near the progress bar.
+- percent = (amount_raised / goal_amount) * 100
+- Clamp to 0–100+ (if over goal, show 100% or show “120%” depending on design; choose one and be consistent).
+- amount_raised must be computed from real donations for that campaign (status='succeeded').
+- If org admin changes goal_amount, percentage recalculates automatically based on the new goal.
+Acceptance:
+- After a donation, the % updates.
+- After changing goal, the % changes accordingly without breaking.
+
+5) ADD RECURRING DONATION OPTIONS EDITOR IN CAMPAIGN EDIT CARD
+Requirements:
+- Add a “Donaciones recurrentes” section in the campaign edit card.
+- Similar UX to amounts:
+  - A set of interval chips/options: weekly, monthly, semiannual, yearly
+  - Admin can toggle intervals on/off (enabled intervals).
+  - Admin can choose a default interval (must be one of the enabled ones).
+- Persist to DB fields (create if missing):
+  - allow_recurring (boolean)
+  - recurring_intervals (text[] or jsonb array)
+  - default_recurring_interval (text)
+Validation:
+- If allow_recurring = false, intervals/default can be hidden or disabled.
+- If allow_recurring = true, at least one interval must be enabled.
+Acceptance:
+- Admin can add/remove recurring intervals and set default.
+- Public donation form reflects enabled intervals if recurring is selected.
+
+DELIVERABLES
+- Fix controlled input behavior for goal + persist updates
+- Reposition and enhance “Cantidades” section + custom chip behavior
+- Fix image persistence bug (PATCH updates / include image_url)
+- Add % completed display to progress bars (dashboard + donor page)
+- Add recurring intervals editor + persistence
+- Add tests/sanity checks to ensure update payloads don’t wipe other fields

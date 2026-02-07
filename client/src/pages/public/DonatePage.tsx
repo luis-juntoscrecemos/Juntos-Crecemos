@@ -199,61 +199,71 @@ function DonationForm({ campaign, organization, feePercent, orgSlug }: DonationF
         <Separator />
 
         <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <RefreshCw className="w-4 h-4 text-muted-foreground" />
-              <div>
-                <label className="text-sm font-medium">Donación recurrente</label>
-                <p className="text-xs text-muted-foreground">Contribuir periódicamente</p>
+          {campaign.allow_recurring && (
+            <>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <RefreshCw className="w-4 h-4 text-muted-foreground" />
+                  <div>
+                    <label className="text-sm font-medium">Donacion recurrente</label>
+                    <p className="text-xs text-muted-foreground">Contribuir periodicamente</p>
+                  </div>
+                </div>
+                <FormField
+                  control={form.control}
+                  name="donation_type"
+                  render={({ field }) => (
+                    <Switch
+                      checked={field.value === 'recurring'}
+                      onCheckedChange={(checked) => {
+                        field.onChange(checked ? 'recurring' : 'one_time');
+                        if (!checked) {
+                          form.setValue('recurring_interval', null);
+                        } else {
+                          form.setValue('recurring_interval', (campaign.default_recurring_interval || 'monthly') as 'weekly' | 'monthly' | 'semiannual' | 'yearly');
+                        }
+                      }}
+                      data-testid="switch-recurring"
+                    />
+                  )}
+                />
               </div>
-            </div>
-            <FormField
-              control={form.control}
-              name="donation_type"
-              render={({ field }) => (
-                <Switch
-                  checked={field.value === 'recurring'}
-                  onCheckedChange={(checked) => {
-                    field.onChange(checked ? 'recurring' : 'one_time');
-                    if (!checked) {
-                      form.setValue('recurring_interval', null);
-                    } else {
-                      form.setValue('recurring_interval', 'monthly');
-                    }
+
+              {watchDonationType === 'recurring' && (
+                <FormField
+                  control={form.control}
+                  name="recurring_interval"
+                  render={({ field }) => {
+                    const intervals = (campaign.recurring_intervals && campaign.recurring_intervals.length > 0)
+                      ? campaign.recurring_intervals
+                      : ['weekly', 'monthly', 'semiannual', 'yearly'];
+                    return (
+                      <FormItem>
+                        <FormLabel>Frecuencia</FormLabel>
+                        <Select
+                          value={field.value || campaign.default_recurring_interval || 'monthly'}
+                          onValueChange={field.onChange}
+                        >
+                          <FormControl>
+                            <SelectTrigger data-testid="select-cadence">
+                              <SelectValue placeholder="Selecciona frecuencia" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {intervals.map((interval) => (
+                              <SelectItem key={interval} value={interval}>
+                                {CADENCE_LABELS[interval] || interval}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    );
                   }}
-                  data-testid="switch-recurring"
                 />
               )}
-            />
-          </div>
-
-          {watchDonationType === 'recurring' && (
-            <FormField
-              control={form.control}
-              name="recurring_interval"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Frecuencia</FormLabel>
-                  <Select
-                    value={field.value || 'monthly'}
-                    onValueChange={field.onChange}
-                  >
-                    <FormControl>
-                      <SelectTrigger data-testid="select-cadence">
-                        <SelectValue placeholder="Selecciona frecuencia" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="weekly">Semanal</SelectItem>
-                      <SelectItem value="monthly">Mensual</SelectItem>
-                      <SelectItem value="semiannual">Semestral</SelectItem>
-                      <SelectItem value="yearly">Anual</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            </>
           )}
 
           <div className="flex items-center justify-between">
@@ -652,7 +662,12 @@ export default function DonatePage() {
                   </div>
                 </div>
                 {campaign.goal_amount && (
-                  <Progress value={progress} className="h-3" />
+                  <div className="space-y-1">
+                    <Progress value={progress} className="h-3" />
+                    <p className="text-xs text-muted-foreground" data-testid="text-progress-percent">
+                      {progress.toFixed(0)}% completado
+                    </p>
+                  </div>
                 )}
               </CardContent>
             </Card>

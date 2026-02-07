@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Plus, Megaphone, Edit, Trash2, Eye, ExternalLink, Copy, Check, Upload, Image as ImageIcon } from 'lucide-react';
+import { Plus, Megaphone, Edit, Trash2, Eye, ExternalLink, Copy, Check, Upload, Image as ImageIcon, RefreshCw, X } from 'lucide-react';
 import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState } from '@/components/common/EmptyState';
 import { LoadingPage, LoadingSpinner } from '@/components/common/LoadingSpinner';
@@ -17,6 +17,7 @@ import { Progress } from '@/components/ui/progress';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { campaignsApi } from '@/lib/api';
 import { getAccessToken } from '@/lib/supabase';
@@ -38,14 +39,29 @@ interface CampaignFormProps {
   onCancel: () => void;
 }
 
+const PRESET_AMOUNT_OPTIONS = [10000, 25000, 50000, 100000, 200000, 500000];
+
+const RECURRING_INTERVAL_OPTIONS: { value: string; label: string }[] = [
+  { value: 'weekly', label: 'Semanal' },
+  { value: 'monthly', label: 'Mensual' },
+  { value: 'semiannual', label: 'Semestral' },
+  { value: 'yearly', label: 'Anual' },
+];
+
 function CampaignForm({ campaign, onSuccess, onCancel }: CampaignFormProps) {
   const { toast } = useToast();
   const isEditing = !!campaign;
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(campaign?.image_url || null);
+  const [imageRemoved, setImageRemoved] = useState(false);
   const [customAmountInput, setCustomAmountInput] = useState('');
+  const [goalDraft, setGoalDraft] = useState<string>(
+    campaign?.goal_amount != null ? String(campaign.goal_amount) : ''
+  );
 
-  const PRESET_AMOUNT_OPTIONS = [10000, 25000, 50000, 100000, 200000, 500000];
+  const initialSelected = campaign?.suggested_amounts || [];
+  const initialCustom = initialSelected.filter(a => !PRESET_AMOUNT_OPTIONS.includes(a));
+  const [availableCustomAmounts, setAvailableCustomAmounts] = useState<number[]>(initialCustom);
 
   const form = useForm<InsertCampaign>({
     resolver: zodResolver(insertCampaignSchema),
@@ -53,11 +69,14 @@ function CampaignForm({ campaign, onSuccess, onCancel }: CampaignFormProps) {
       title: campaign?.title || '',
       slug: campaign?.slug || '',
       description: campaign?.description || '',
-      goal_amount: campaign?.goal_amount || undefined,
+      goal_amount: campaign?.goal_amount ?? undefined,
       currency: campaign?.currency || 'COP',
       is_active: campaign?.is_active ?? true,
       image_url: campaign?.image_url || null,
       suggested_amounts: campaign?.suggested_amounts || [],
+      allow_recurring: campaign?.allow_recurring ?? false,
+      recurring_intervals: campaign?.recurring_intervals || [],
+      default_recurring_interval: campaign?.default_recurring_interval || null,
     },
   });
 
@@ -66,9 +85,7 @@ function CampaignForm({ campaign, onSuccess, onCancel }: CampaignFormProps) {
       const token = await getAccessToken();
       const res = await fetch('/api/campaigns', {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token || ''}`,
-        },
+        headers: { 'Authorization': `Bearer ${token || ''}` },
         body: formData,
       });
       return res.json();
@@ -92,9 +109,7 @@ function CampaignForm({ campaign, onSuccess, onCancel }: CampaignFormProps) {
       const token = await getAccessToken();
       const res = await fetch(`/api/campaigns/${campaign!.id}`, {
         method: 'PATCH',
-        headers: {
-          'Authorization': `Bearer ${token || ''}`,
-        },
+        headers: { 'Authorization': `Bearer ${token || ''}` },
         body: formData,
       });
       return res.json();
@@ -119,6 +134,7 @@ function CampaignForm({ campaign, onSuccess, onCancel }: CampaignFormProps) {
     const file = e.target.files?.[0];
     if (file) {
       setImageFile(file);
+      setImageRemoved(false);
       const reader = new FileReader();
       reader.onloadend = () => {
         setImagePreview(reader.result as string);
@@ -130,30 +146,45 @@ function CampaignForm({ campaign, onSuccess, onCancel }: CampaignFormProps) {
   const removeImage = () => {
     setImageFile(null);
     setImagePreview(null);
-    form.setValue('image_url', null);
+    setImageRemoved(true);
   };
 
   const onSubmit = (data: InsertCampaign) => {
     const formData = new FormData();
-    Object.entries(data).forEach(([key, value]) => {
-      if (value !== undefined && value !== null) {
-        // Handle array fields (like suggested_amounts)
-        if (Array.isArray(value)) {
-          formData.append(key, JSON.stringify(value));
-        } else {
-          formData.append(key, value.toString());
-        }
-      }
-    });
+
+    formData.append('title', data.title);
+    formData.append('slug', data.slug);
+    if (data.description) formData.append('description', data.description);
+    formData.append('currency', data.currency || 'COP');
+    formData.append('is_active', String(data.is_active ?? true));
+
+    const goalVal = goalDraft.trim();
+    if (goalVal === '') {
+      formData.append('goal_amount', '');
+    } else {
+      formData.append('goal_amount', goalVal);
+    }
+
+    if (data.suggested_amounts && data.suggested_amounts.length > 0) {
+      formData.append('suggested_amounts', JSON.stringify(data.suggested_amounts));
+    } else {
+      formData.append('suggested_amounts', '[]');
+    }
+
+    formData.append('allow_recurring', String(data.allow_recurring ?? false));
+    if (data.recurring_intervals && data.recurring_intervals.length > 0) {
+      formData.append('recurring_intervals', JSON.stringify(data.recurring_intervals));
+    } else {
+      formData.append('recurring_intervals', '[]');
+    }
+    if (data.default_recurring_interval) {
+      formData.append('default_recurring_interval', data.default_recurring_interval);
+    }
 
     if (imageFile) {
       formData.append('image', imageFile);
-    } else if (imagePreview === null) {
-      // Explicitly remove image
-      formData.append('image_url', '');
-    } else if (campaign?.image_url) {
-      // Preserve existing image_url if no new file is selected and not explicitly removed
-      formData.append('image_url', campaign.image_url);
+    } else if (imageRemoved) {
+      formData.append('remove_image', 'true');
     }
 
     if (isEditing) {
@@ -174,6 +205,49 @@ function CampaignForm({ campaign, onSuccess, onCancel }: CampaignFormProps) {
     form.setValue('slug', slug);
   };
 
+  const allChipAmountsSet = new Set([...PRESET_AMOUNT_OPTIONS, ...availableCustomAmounts]);
+  const allChipAmounts = Array.from(allChipAmountsSet).sort((a, b) => a - b);
+  const selectedAmounts: number[] = form.watch('suggested_amounts') || [];
+
+  const toggleAmountSelection = (amount: number) => {
+    if (selectedAmounts.includes(amount)) {
+      form.setValue('suggested_amounts', selectedAmounts.filter(a => a !== amount));
+    } else {
+      form.setValue('suggested_amounts', [...selectedAmounts, amount].sort((a, b) => a - b));
+    }
+  };
+
+  const addCustomAmount = () => {
+    const value = parseInt(customAmountInput.replace(/\D/g, ''));
+    if (value && value > 0 && !allChipAmounts.includes(value)) {
+      setAvailableCustomAmounts(prev => [...prev, value].sort((a, b) => a - b));
+      form.setValue('suggested_amounts', [...selectedAmounts, value].sort((a, b) => a - b));
+      setCustomAmountInput('');
+    }
+  };
+
+  const removeCustomAmount = (amount: number) => {
+    setAvailableCustomAmounts(prev => prev.filter(a => a !== amount));
+    form.setValue('suggested_amounts', selectedAmounts.filter(a => a !== amount));
+  };
+
+  const watchAllowRecurring = form.watch('allow_recurring');
+  const watchRecurringIntervals: string[] = form.watch('recurring_intervals') || [];
+  const watchDefaultInterval = form.watch('default_recurring_interval');
+
+  const toggleRecurringInterval = (interval: string) => {
+    let newIntervals: string[];
+    if (watchRecurringIntervals.includes(interval)) {
+      newIntervals = watchRecurringIntervals.filter(i => i !== interval);
+    } else {
+      newIntervals = [...watchRecurringIntervals, interval];
+    }
+    form.setValue('recurring_intervals', newIntervals);
+    if (watchDefaultInterval && !newIntervals.includes(watchDefaultInterval)) {
+      form.setValue('default_recurring_interval', newIntervals[0] || null);
+    }
+  };
+
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
@@ -182,17 +256,90 @@ function CampaignForm({ campaign, onSuccess, onCancel }: CampaignFormProps) {
           name="title"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Título de la campaña</FormLabel>
+              <FormLabel>Titulo de la campana</FormLabel>
               <FormControl>
                 <Input 
                   {...field} 
-                  placeholder="Ej: Alimentación para niños" 
+                  placeholder="Ej: Alimentacion para ninos" 
                   onBlur={() => {
                     if (!form.getValues('slug')) generateSlug();
                   }}
                   data-testid="input-campaign-title"
                 />
               </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="suggested_amounts"
+          render={() => (
+            <FormItem>
+              <FormLabel>Cantidades sugeridas</FormLabel>
+              <FormDescription>
+                Montos que los donantes podran seleccionar. Los activados se mostraran en el formulario.
+              </FormDescription>
+              <div className="flex flex-wrap gap-2 mt-2">
+                {allChipAmounts.map((amount) => {
+                  const isSelected = selectedAmounts.includes(amount);
+                  const isCustom = !PRESET_AMOUNT_OPTIONS.includes(amount);
+                  return (
+                    <div key={amount} className="flex items-center gap-0">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant={isSelected ? 'default' : 'outline'}
+                        onClick={() => toggleAmountSelection(amount)}
+                        className={isCustom && isSelected ? 'rounded-r-none' : ''}
+                        data-testid={`button-preset-amount-${amount}`}
+                      >
+                        {formatCurrency(amount)}
+                      </Button>
+                      {isCustom && (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant={isSelected ? 'default' : 'outline'}
+                          className={`px-1.5 rounded-l-none border-l-0 ${isSelected ? '' : ''}`}
+                          onClick={() => removeCustomAmount(amount)}
+                          data-testid={`button-remove-amount-${amount}`}
+                        >
+                          <X className="w-3 h-3" />
+                        </Button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="flex items-center gap-2 mt-2">
+                <Input
+                  type="number"
+                  placeholder="Otro monto"
+                  value={customAmountInput}
+                  onChange={(e) => setCustomAmountInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      addCustomAmount();
+                    }
+                  }}
+                  className="flex-1"
+                  data-testid="input-custom-suggested-amount"
+                />
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={addCustomAmount}
+                  disabled={!customAmountInput}
+                  data-testid="button-add-custom-amount"
+                >
+                  <Plus className="w-4 h-4 mr-1" />
+                  Agregar
+                </Button>
+              </div>
               <FormMessage />
             </FormItem>
           )}
@@ -208,7 +355,7 @@ function CampaignForm({ campaign, onSuccess, onCancel }: CampaignFormProps) {
                 <Input {...field} placeholder="alimentacion-ninos" data-testid="input-campaign-slug" />
               </FormControl>
               <FormDescription>
-                Se usará en la URL de donación
+                Se usara en la URL de donacion
               </FormDescription>
               <FormMessage />
             </FormItem>
@@ -220,12 +367,12 @@ function CampaignForm({ campaign, onSuccess, onCancel }: CampaignFormProps) {
           name="description"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Descripción</FormLabel>
+              <FormLabel>Descripcion</FormLabel>
               <FormControl>
                 <Textarea 
                   {...field} 
                   value={field.value || ''} 
-                  placeholder="Describe el propósito de esta campaña..."
+                  placeholder="Describe el proposito de esta campana..."
                   className="min-h-[100px]"
                   data-testid="input-campaign-description"
                 />
@@ -236,27 +383,23 @@ function CampaignForm({ campaign, onSuccess, onCancel }: CampaignFormProps) {
         />
 
         <div className="grid grid-cols-2 gap-4">
-          <FormField
-            control={form.control}
-            name="goal_amount"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Meta de recaudación</FormLabel>
-                <FormControl>
-                  <Input 
-                    type="number" 
-                    {...field}
-                    value={field.value || ''}
-                    onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : undefined)}
-                    placeholder="1000000"
-                    data-testid="input-campaign-goal"
-                  />
-                </FormControl>
-                <FormDescription>En pesos colombianos (COP)</FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+          <FormItem>
+            <FormLabel>Meta de recaudacion</FormLabel>
+            <FormControl>
+              <Input
+                type="number"
+                value={goalDraft}
+                onChange={(e) => {
+                  setGoalDraft(e.target.value);
+                  const num = parseInt(e.target.value, 10);
+                  form.setValue('goal_amount', isNaN(num) ? undefined : num);
+                }}
+                placeholder="1000000"
+                data-testid="input-campaign-goal"
+              />
+            </FormControl>
+            <FormDescription>En pesos colombianos (COP)</FormDescription>
+          </FormItem>
 
           <FormField
             control={form.control}
@@ -283,7 +426,7 @@ function CampaignForm({ campaign, onSuccess, onCancel }: CampaignFormProps) {
         </div>
 
         <div className="space-y-2">
-          <FormLabel>Imagen de la campaña</FormLabel>
+          <FormLabel>Imagen de la campana</FormLabel>
           <div className="flex items-center gap-4">
             <div className="w-24 h-24 rounded-md border bg-muted flex items-center justify-center overflow-hidden">
               {imagePreview ? (
@@ -303,7 +446,7 @@ function CampaignForm({ campaign, onSuccess, onCancel }: CampaignFormProps) {
               <div className="flex gap-2">
                 <Label
                   htmlFor="campaign-image"
-                  className="flex items-center gap-2 cursor-pointer bg-secondary text-secondary-foreground hover:bg-secondary/80 h-9 px-4 py-2 rounded-md text-sm font-medium transition-colors"
+                  className="flex items-center gap-2 cursor-pointer bg-secondary text-secondary-foreground h-9 px-4 py-2 rounded-md text-sm font-medium transition-colors hover-elevate"
                 >
                   <Upload className="w-4 h-4" />
                   {imagePreview ? 'Cambiar imagen' : 'Subir imagen'}
@@ -314,7 +457,8 @@ function CampaignForm({ campaign, onSuccess, onCancel }: CampaignFormProps) {
                     variant="outline" 
                     size="sm" 
                     onClick={removeImage}
-                    className="text-destructive hover:text-destructive"
+                    className="text-destructive"
+                    data-testid="button-remove-image"
                   >
                     <Trash2 className="w-4 h-4 mr-2" />
                     Quitar
@@ -322,104 +466,94 @@ function CampaignForm({ campaign, onSuccess, onCancel }: CampaignFormProps) {
                 )}
               </div>
               <p className="text-xs text-muted-foreground mt-2">
-                Formatos recomendados: PNG, JPG o WebP. Máx 2MB.
+                Formatos recomendados: PNG, JPG o WebP. Max 2MB.
               </p>
             </div>
           </div>
         </div>
 
-        <FormField
-          control={form.control}
-          name="suggested_amounts"
-          render={({ field }) => {
-            const amounts = (field.value || []).sort((a, b) => a - b);
+        <div className="space-y-4 border rounded-md p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <RefreshCw className="w-4 h-4 text-muted-foreground" />
+              <div>
+                <FormLabel className="mb-0">Donaciones recurrentes</FormLabel>
+                <p className="text-xs text-muted-foreground">Permitir a los donantes contribuir periodicamente</p>
+              </div>
+            </div>
+            <FormField
+              control={form.control}
+              name="allow_recurring"
+              render={({ field }) => (
+                <Switch
+                  checked={field.value}
+                  onCheckedChange={(checked) => {
+                    field.onChange(checked);
+                    if (checked && watchRecurringIntervals.length === 0) {
+                      form.setValue('recurring_intervals', ['monthly']);
+                      form.setValue('default_recurring_interval', 'monthly');
+                    }
+                  }}
+                  data-testid="switch-allow-recurring"
+                />
+              )}
+            />
+          </div>
 
-            const toggleAmount = (amount: number) => {
-              if (amounts.includes(amount)) {
-                field.onChange(amounts.filter(a => a !== amount));
-              } else {
-                field.onChange([...amounts, amount].sort((a, b) => a - b));
-              }
-            };
-
-            const addCustomAmount = () => {
-              const value = parseInt(customAmountInput.replace(/\D/g, ''));
-              if (value && value > 0 && !amounts.includes(value)) {
-                field.onChange([...amounts, value].sort((a, b) => a - b));
-                setCustomAmountInput('');
-              }
-            };
-
-            return (
-              <FormItem>
-                <FormLabel>Cantidades sugeridas</FormLabel>
-                <FormDescription>
-                  Montos predefinidos que los donantes podrán seleccionar
-                </FormDescription>
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {PRESET_AMOUNT_OPTIONS.map((amount) => (
+          {watchAllowRecurring && (
+            <div className="space-y-3 pt-2">
+              <div>
+                <FormLabel className="text-sm">Intervalos disponibles</FormLabel>
+                <div className="flex flex-wrap gap-2 mt-1.5">
+                  {RECURRING_INTERVAL_OPTIONS.map((opt) => (
                     <Button
-                      key={amount}
+                      key={opt.value}
                       type="button"
                       size="sm"
-                      variant={amounts.includes(amount) ? 'default' : 'outline'}
-                      onClick={() => toggleAmount(amount)}
-                      data-testid={`button-preset-amount-${amount}`}
+                      variant={watchRecurringIntervals.includes(opt.value) ? 'default' : 'outline'}
+                      onClick={() => toggleRecurringInterval(opt.value)}
+                      data-testid={`button-interval-${opt.value}`}
                     >
-                      {formatCurrency(amount)}
+                      {opt.label}
                     </Button>
                   ))}
                 </div>
-                {amounts.filter(a => !PRESET_AMOUNT_OPTIONS.includes(a)).length > 0 && (
-                  <div className="flex flex-wrap gap-1.5 mt-2">
-                    {amounts.filter(a => !PRESET_AMOUNT_OPTIONS.includes(a)).map((amount) => (
-                      <Badge key={amount} variant="secondary" className="gap-1" data-testid={`badge-custom-amount-${amount}`}>
-                        {formatCurrency(amount)}
-                        <button
-                          type="button"
-                          onClick={() => toggleAmount(amount)}
-                          className="ml-0.5 text-muted-foreground"
-                          aria-label={`Quitar ${formatCurrency(amount)}`}
-                          data-testid={`button-remove-amount-${amount}`}
-                        >
-                          &times;
-                        </button>
-                      </Badge>
-                    ))}
-                  </div>
-                )}
-                <div className="flex items-center gap-2 mt-2">
-                  <Input
-                    type="number"
-                    placeholder="Otro monto"
-                    value={customAmountInput}
-                    onChange={(e) => setCustomAmountInput(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        addCustomAmount();
-                      }
-                    }}
-                    className="flex-1"
-                    data-testid="input-custom-suggested-amount"
-                  />
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    onClick={addCustomAmount}
-                    disabled={!customAmountInput}
-                    data-testid="button-add-custom-amount"
-                  >
-                    <Plus className="w-4 h-4 mr-1" />
-                    Agregar
-                  </Button>
-                </div>
-                <FormMessage />
-              </FormItem>
-            );
-          }}
-        />
+              </div>
+
+              {watchRecurringIntervals.length > 0 && (
+                <FormField
+                  control={form.control}
+                  name="default_recurring_interval"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-sm">Intervalo por defecto</FormLabel>
+                      <Select
+                        value={field.value || ''}
+                        onValueChange={field.onChange}
+                      >
+                        <FormControl>
+                          <SelectTrigger data-testid="select-default-interval">
+                            <SelectValue placeholder="Selecciona intervalo por defecto" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {watchRecurringIntervals.map((interval) => {
+                            const opt = RECURRING_INTERVAL_OPTIONS.find(o => o.value === interval);
+                            return (
+                              <SelectItem key={interval} value={interval}>
+                                {opt?.label || interval}
+                              </SelectItem>
+                            );
+                          })}
+                        </SelectContent>
+                      </Select>
+                    </FormItem>
+                  )}
+                />
+              )}
+            </div>
+          )}
+        </div>
 
         <DialogFooter>
           <Button type="button" variant="outline" onClick={onCancel}>
@@ -432,7 +566,7 @@ function CampaignForm({ campaign, onSuccess, onCancel }: CampaignFormProps) {
                 {isEditing ? 'Guardando...' : 'Creando...'}
               </>
             ) : (
-              isEditing ? 'Guardar cambios' : 'Crear campaña'
+              isEditing ? 'Guardar cambios' : 'Crear campana'
             )}
           </Button>
         </DialogFooter>
@@ -506,6 +640,11 @@ function CampaignCard({ campaign, orgSlug, onEdit, onDelete }: CampaignCardProps
             </span>
           </div>
           <Progress value={progress} className="h-2" />
+          {campaign.goal_amount && (
+            <p className="text-xs text-muted-foreground" data-testid={`text-progress-percent-${campaign.id}`}>
+              {progress.toFixed(0)}% completado
+            </p>
+          )}
         </div>
 
         <div className="flex gap-4 text-sm text-muted-foreground">
