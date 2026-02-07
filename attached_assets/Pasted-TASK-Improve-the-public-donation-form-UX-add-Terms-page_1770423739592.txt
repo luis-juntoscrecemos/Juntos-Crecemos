@@ -1,0 +1,94 @@
+TASK: Improve the public donation form UX + add Terms page + add placeholder card fields + ensure submissions count as real donations in the org admin dashboard.
+
+CONTEXT
+- Public donation route exists: `/donar/[campaign-slug]`
+- We do NOT have a payment processor integrated yet, but we want the UI to look like a real checkout.
+- Today, when a donor submits the form, we want the submission to be treated as a real donation for reporting purposes (so it appears in the org admin “Panel” dashboard metrics and recent donations list).
+
+REQUIREMENTS
+
+1) TOTAL SECTION MUST ALWAYS SHOW (sticky at bottom)
+- Add a “Resumen / Total” area that is visible at the bottom of the donation form at all times.
+- It must show:
+  - Donación: {amount}
+  - Tarifas de procesamiento: {fee_amount}  (show 0 if donor is not covering fees)
+  - Total: {total_amount}
+- Behavior:
+  - If donor has NOT selected “cover fees”, fee_amount = 0 and total_amount = amount.
+  - If donor selects “cover fees”, compute fee_amount and total_amount updates live.
+- UI:
+  - This should be pinned/sticky at the bottom of the form container (or as a persistent bottom bar on mobile).
+  - The total must update immediately when amount changes, preset selection changes, custom amount changes, or cover-fees toggle changes.
+
+2) FIX “TERMS AND CONDITIONS” CHECKBOX ALIGNMENT
+- The label text “Acepto Términos y Condiciones” is vertically misaligned with the checkbox (text sits too low).
+- Fix the alignment using proper layout (flex + items-start/items-center) so the checkbox and first line of text align correctly.
+- Keep spacing consistent with the rest of the form.
+
+3) CREATE A “TERMS AND CONDITIONS” PAGE + LINK IT FROM THE FORM
+- Create a public page route: `/terminos` (Spanish)
+- Add basic Terms & Conditions content template (can be placeholder but professional and relevant to donations):
+  - acceptance of terms
+  - donation nature (non-refundable unless stated)
+  - data/privacy reference
+  - payment processing disclaimer (even if future)
+  - contact email placeholder
+- On the donation form, in the checkbox label text, make “Términos y Condiciones” a link to `/terminos` (opens in new tab preferred).
+
+4) ADD CREDIT CARD INPUT FIELDS (UI ONLY, NO PROCESSING YET)
+- Add a “Pago con tarjeta” section at the bottom of the form (above the submit button OR just before the sticky total; choose best UX).
+- Fields required:
+  - Name on card
+  - Card number
+  - Expiration (MM/YY)
+  - CVV
+- IMPORTANT:
+  - These fields are ONLY UI placeholders for now (no payment processing).
+  - Do NOT store raw card data in the database.
+  - Add client-side validation for formatting only (length/pattern), but do not block submission if we decide to keep it lightweight.
+  - Add helper text: “Procesamiento de pagos próximamente” or similar.
+
+Security requirement:
+- Ensure the code never sends card fields to the backend and never logs them.
+
+5) SUBMITTING DONATION MUST COUNT AS A REAL DONATION IN THE ORG “PANEL” DASHBOARD
+- Right now, after submitting a donation, we want it to appear:
+  - In dashboard KPI cards (amount, # donations, etc.)
+  - In “Recent donations” list
+- Implement by writing a record into the same table the dashboard reads from for donations.
+  - If dashboard currently reads from `donations`, then on submit insert into `donations`.
+  - Use status = 'succeeded' (or equivalent) so it’s included in metrics.
+- Record fields should include at minimum:
+  - organization_id
+  - campaign_id
+  - donor_first_name
+  - donor_last_name
+  - donor_email
+  - donor_note
+  - amount
+  - cover_fees boolean
+  - fee_amount
+  - total_amount
+  - donation_type (one_time/recurring)
+  - recurring_interval if applicable
+  - created_at
+  - transaction_id (use generated uuid as transaction id if no provider)
+- Ensure the donor submission writes organization_id correctly (derived from the campaign’s organization_id).
+- After submission:
+  - Redirect to a confirmation/receipt page (existing `/donaciones/[id]` summary page if present) OR show success state with the transaction id.
+
+IMPORTANT: Do NOT tie this to any payment provider yet. We’re simulating “paid” donations for now so we can validate the product UX and dashboards.
+
+ACCEPTANCE CRITERIA
+- Total summary is always visible and correct (fee shows 0 when not selected).
+- Terms checkbox alignment is visually correct.
+- `/terminos` page exists and is linked from the donation form text.
+- Card fields appear, validate lightly, and are never sent/stored/logged.
+- Submitting the donation creates a donation record that immediately shows up in the org admin dashboard metrics and recent donations list.
+
+DELIVERABLES
+- Updated `/donar/[campaign-slug]` donation form UI + sticky total
+- New `/terminos` page
+- Updated submission flow to create a real donation record used by the dashboard
+- Any necessary DB updates/migrations (ONLY if required)
+- Ensure no sensitive card data is persisted anywhere

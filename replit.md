@@ -84,7 +84,10 @@ Note: Frontend receives Supabase config via `/api/config` endpoint to avoid need
 - `GET /api/public/campaigns/:orgSlug/:campaignSlug` - Get public campaign + organization
 - `GET /api/public/organizations/:slug` - Get public organization profile with active campaigns
 - `POST /api/public/donations` - Create donation (for public donation form)
+- `POST /api/public/donation-intents` - Create donation intent + real donation record (status=paid)
+- `GET /api/public/donation-intents/:id` - Get donation intent details with campaign/org info
 - `POST /api/auth/register-org` - Register new organization (multipart form with logo upload)
+- `GET /terminos` - Public Terms & Conditions page
 
 ### Donor Dashboard (requires donor auth)
 - `GET /api/donor/check` - Check if user has donor account

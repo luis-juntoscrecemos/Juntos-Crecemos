@@ -1010,6 +1010,32 @@ export async function registerRoutes(
         return res.status(500).json({ error: 'Error al crear la intención de donación' });
       }
 
+      const donorFullName = is_anonymous
+        ? 'Anónimo'
+        : [donor_first_name, donor_last_name].filter(Boolean).join(' ');
+
+      const { error: donationError } = await supabase
+        .from('donations')
+        .insert({
+          campaign_id: campaign.id,
+          org_id: campaign.org_id,
+          amount_minor: total_amount * 100,
+          currency: campaign.currency || 'COP',
+          status: 'paid',
+          provider: 'platform',
+          external_id: intent.id,
+          is_recurring: donation_type === 'recurring',
+          is_anonymous,
+          donor_name: donorFullName,
+          donor_email,
+          paid_at: new Date().toISOString(),
+        });
+
+      if (donationError) {
+        console.error('Create donation record error:', donationError?.message || donationError);
+        return res.status(500).json({ error: 'Error al registrar la donación' });
+      }
+
       res.status(201).json({ data: { intentId: intent.id } });
     } catch (error) {
       console.error('Create donation intent error:', error);

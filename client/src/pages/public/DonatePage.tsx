@@ -4,7 +4,7 @@ import { useQuery, useMutation } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Heart, Shield, CheckCircle, Building2, RefreshCw, MessageSquare, FileText, ChevronRight } from 'lucide-react';
+import { Heart, Shield, CheckCircle, Building2, RefreshCw, MessageSquare, FileText, ChevronRight, CreditCard, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -70,6 +70,10 @@ function DonationForm({ campaign, organization, feePercent, orgSlug }: DonationF
   const [, navigate] = useLocation();
   const [selectedAmount, setSelectedAmount] = useState<number | null>(null);
   const [customAmount, setCustomAmount] = useState('');
+  const [cardName, setCardName] = useState('');
+  const [cardNumber, setCardNumber] = useState('');
+  const [cardExpiry, setCardExpiry] = useState('');
+  const [cardCvv, setCardCvv] = useState('');
 
   const suggestedAmounts: number[] = campaign.suggested_amounts || [];
 
@@ -124,6 +128,19 @@ function DonationForm({ campaign, organization, feePercent, orgSlug }: DonationF
     setSelectedAmount(null);
     const numValue = parseInt(value) || 0;
     form.setValue('amount', numValue, { shouldValidate: true });
+  };
+
+  const formatCardNumber = (value: string) => {
+    const digits = value.replace(/\D/g, '').slice(0, 16);
+    return digits.replace(/(\d{4})(?=\d)/g, '$1 ');
+  };
+
+  const formatExpiry = (value: string) => {
+    const digits = value.replace(/\D/g, '').slice(0, 4);
+    if (digits.length >= 3) {
+      return digits.slice(0, 2) + '/' + digits.slice(2);
+    }
+    return digits;
   };
 
   const onSubmit = (data: DonationIntentFormData) => {
@@ -372,24 +389,67 @@ function DonationForm({ campaign, organization, feePercent, orgSlug }: DonationF
               )}
             />
           </div>
+        </div>
 
-          {watchCoverFees && watchAmount > 0 && (
-            <div className="bg-muted/50 rounded-md p-3 space-y-1.5 text-sm" data-testid="text-fee-breakdown">
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Donación</span>
-                <span>{formatCurrency(watchAmount, campaign.currency)}</span>
+        <Separator />
+
+        <div className="space-y-4">
+          <div className="flex items-center gap-2">
+            <CreditCard className="w-4 h-4 text-muted-foreground" />
+            <label className="text-sm font-medium">Pago con tarjeta</label>
+          </div>
+          <p className="text-xs text-muted-foreground flex items-center gap-1">
+            <Lock className="w-3 h-3" />
+            Procesamiento de pagos próximamente
+          </p>
+          <div className="space-y-3">
+            <div>
+              <label className="text-sm text-muted-foreground mb-1.5 block">Nombre en la tarjeta</label>
+              <Input
+                value={cardName}
+                onChange={(e) => setCardName(e.target.value)}
+                placeholder="Juan Pérez"
+                data-testid="input-card-name"
+                autoComplete="off"
+              />
+            </div>
+            <div>
+              <label className="text-sm text-muted-foreground mb-1.5 block">Número de tarjeta</label>
+              <Input
+                value={cardNumber}
+                onChange={(e) => setCardNumber(formatCardNumber(e.target.value))}
+                placeholder="0000 0000 0000 0000"
+                maxLength={19}
+                data-testid="input-card-number"
+                autoComplete="off"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-sm text-muted-foreground mb-1.5 block">Vencimiento</label>
+                <Input
+                  value={cardExpiry}
+                  onChange={(e) => setCardExpiry(formatExpiry(e.target.value))}
+                  placeholder="MM/YY"
+                  maxLength={5}
+                  data-testid="input-card-expiry"
+                  autoComplete="off"
+                />
               </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Tarifa ({feePercent}%)</span>
-                <span>{formatCurrency(feeAmount, campaign.currency)}</span>
-              </div>
-              <Separator />
-              <div className="flex justify-between font-semibold">
-                <span>Total</span>
-                <span data-testid="text-fee-total">{formatCurrency(totalAmount, campaign.currency)}</span>
+              <div>
+                <label className="text-sm text-muted-foreground mb-1.5 block">CVV</label>
+                <Input
+                  value={cardCvv}
+                  onChange={(e) => setCardCvv(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                  placeholder="123"
+                  maxLength={4}
+                  type="password"
+                  data-testid="input-card-cvv"
+                  autoComplete="off"
+                />
               </div>
             </div>
-          )}
+          </div>
         </div>
 
         <Separator />
@@ -398,20 +458,28 @@ function DonationForm({ campaign, organization, feePercent, orgSlug }: DonationF
           control={form.control}
           name="terms_accepted"
           render={({ field }) => (
-            <FormItem className="flex flex-row items-start gap-3">
+            <FormItem className="flex flex-row items-center gap-3">
               <FormControl>
                 <Checkbox
                   checked={field.value}
                   onCheckedChange={field.onChange}
                   data-testid="checkbox-terms"
+                  className="mt-0"
                 />
               </FormControl>
-              <div className="space-y-1 leading-none">
+              <div className="leading-none">
                 <FormLabel className="text-sm font-normal cursor-pointer">
-                  <span className="flex items-center gap-1">
-                    <FileText className="w-3.5 h-3.5 flex-shrink-0" />
-                    Acepto los Términos y Condiciones y la Política de Privacidad
-                  </span>
+                  Acepto los{' '}
+                  <a
+                    href="/terminos"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary underline underline-offset-2"
+                    data-testid="link-terms"
+                  >
+                    Términos y Condiciones
+                  </a>
+                  {' '}y la Política de Privacidad
                 </FormLabel>
                 <FormMessage />
               </div>
@@ -419,41 +487,61 @@ function DonationForm({ campaign, organization, feePercent, orgSlug }: DonationF
           )}
         />
 
-        <Button
-          type="submit"
-          className="w-full"
-          size="lg"
-          disabled={createMutation.isPending || !watchAmount}
-          data-testid="button-continue"
-        >
-          {createMutation.isPending ? (
-            <>
-              <LoadingSpinner size="sm" className="mr-2" />
-              Procesando...
-            </>
-          ) : (
-            <>
-              Continuar
-              <ChevronRight className="w-4 h-4 ml-1" />
-            </>
+        <div className="pb-40" aria-hidden="true" />
+
+        <div className="sticky bottom-0 bg-card border-t -mx-6 px-6 py-4 -mb-6 rounded-b-md z-10" data-testid="section-total-summary">
+          <div className="space-y-1.5 text-sm mb-4">
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Donación</span>
+              <span data-testid="text-summary-donation">{formatCurrency(watchAmount, campaign.currency)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Tarifas de procesamiento</span>
+              <span data-testid="text-summary-fee">{formatCurrency(feeAmount, campaign.currency)}</span>
+            </div>
+            <Separator />
+            <div className="flex justify-between font-semibold text-base">
+              <span>Total</span>
+              <span data-testid="text-summary-total">{formatCurrency(totalAmount, campaign.currency)}</span>
+            </div>
+          </div>
+
+          <Button
+            type="submit"
+            className="w-full"
+            size="lg"
+            disabled={createMutation.isPending || !watchAmount}
+            data-testid="button-continue"
+          >
+            {createMutation.isPending ? (
+              <>
+                <LoadingSpinner size="sm" className="mr-2" />
+                Procesando...
+              </>
+            ) : (
+              <>
+                Donar {watchAmount > 0 ? formatCurrency(totalAmount, campaign.currency) : ''}
+                <ChevronRight className="w-4 h-4 ml-1" />
+              </>
+            )}
+          </Button>
+
+          {createMutation.isError && (
+            <p className="text-sm text-destructive text-center mt-2" data-testid="text-submit-error">
+              Error al procesar la donación. Por favor, intenta de nuevo.
+            </p>
           )}
-        </Button>
 
-        {createMutation.isError && (
-          <p className="text-sm text-destructive text-center" data-testid="text-submit-error">
-            Error al procesar la donación. Por favor, intenta de nuevo.
-          </p>
-        )}
+          {(createMutation as any).data?.error && (
+            <p className="text-sm text-destructive text-center mt-2" data-testid="text-submit-error">
+              {(createMutation as any).data.error}
+            </p>
+          )}
 
-        {(createMutation as any).data?.error && (
-          <p className="text-sm text-destructive text-center" data-testid="text-submit-error">
-            {(createMutation as any).data.error}
-          </p>
-        )}
-
-        <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
-          <Shield className="w-3 h-3" />
-          <span>Transacción segura y encriptada</span>
+          <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground mt-3">
+            <Shield className="w-3 h-3" />
+            <span>Transacción segura y encriptada</span>
+          </div>
         </div>
       </form>
     </Form>
