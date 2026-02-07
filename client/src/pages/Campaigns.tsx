@@ -43,6 +43,9 @@ function CampaignForm({ campaign, onSuccess, onCancel }: CampaignFormProps) {
   const isEditing = !!campaign;
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(campaign?.image_url || null);
+  const [customAmountInput, setCustomAmountInput] = useState('');
+
+  const PRESET_AMOUNT_OPTIONS = [10000, 25000, 50000, 100000, 200000, 500000];
 
   const form = useForm<InsertCampaign>({
     resolver: zodResolver(insertCampaignSchema),
@@ -54,6 +57,7 @@ function CampaignForm({ campaign, onSuccess, onCancel }: CampaignFormProps) {
       currency: campaign?.currency || 'COP',
       is_active: campaign?.is_active ?? true,
       image_url: campaign?.image_url || null,
+      suggested_amounts: campaign?.suggested_amounts || [],
     },
   });
 
@@ -323,6 +327,99 @@ function CampaignForm({ campaign, onSuccess, onCancel }: CampaignFormProps) {
             </div>
           </div>
         </div>
+
+        <FormField
+          control={form.control}
+          name="suggested_amounts"
+          render={({ field }) => {
+            const amounts = (field.value || []).sort((a, b) => a - b);
+
+            const toggleAmount = (amount: number) => {
+              if (amounts.includes(amount)) {
+                field.onChange(amounts.filter(a => a !== amount));
+              } else {
+                field.onChange([...amounts, amount].sort((a, b) => a - b));
+              }
+            };
+
+            const addCustomAmount = () => {
+              const value = parseInt(customAmountInput.replace(/\D/g, ''));
+              if (value && value > 0 && !amounts.includes(value)) {
+                field.onChange([...amounts, value].sort((a, b) => a - b));
+                setCustomAmountInput('');
+              }
+            };
+
+            return (
+              <FormItem>
+                <FormLabel>Cantidades sugeridas</FormLabel>
+                <FormDescription>
+                  Montos predefinidos que los donantes podrán seleccionar
+                </FormDescription>
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {PRESET_AMOUNT_OPTIONS.map((amount) => (
+                    <Button
+                      key={amount}
+                      type="button"
+                      size="sm"
+                      variant={amounts.includes(amount) ? 'default' : 'outline'}
+                      onClick={() => toggleAmount(amount)}
+                      data-testid={`button-preset-amount-${amount}`}
+                    >
+                      {formatCurrency(amount)}
+                    </Button>
+                  ))}
+                </div>
+                {amounts.filter(a => !PRESET_AMOUNT_OPTIONS.includes(a)).length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 mt-2">
+                    {amounts.filter(a => !PRESET_AMOUNT_OPTIONS.includes(a)).map((amount) => (
+                      <Badge key={amount} variant="secondary" className="gap-1" data-testid={`badge-custom-amount-${amount}`}>
+                        {formatCurrency(amount)}
+                        <button
+                          type="button"
+                          onClick={() => toggleAmount(amount)}
+                          className="ml-0.5 text-muted-foreground"
+                          aria-label={`Quitar ${formatCurrency(amount)}`}
+                          data-testid={`button-remove-amount-${amount}`}
+                        >
+                          &times;
+                        </button>
+                      </Badge>
+                    ))}
+                  </div>
+                )}
+                <div className="flex items-center gap-2 mt-2">
+                  <Input
+                    type="number"
+                    placeholder="Otro monto"
+                    value={customAmountInput}
+                    onChange={(e) => setCustomAmountInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        addCustomAmount();
+                      }
+                    }}
+                    className="flex-1"
+                    data-testid="input-custom-suggested-amount"
+                  />
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={addCustomAmount}
+                    disabled={!customAmountInput}
+                    data-testid="button-add-custom-amount"
+                  >
+                    <Plus className="w-4 h-4 mr-1" />
+                    Agregar
+                  </Button>
+                </div>
+                <FormMessage />
+              </FormItem>
+            );
+          }}
+        />
 
         <DialogFooter>
           <Button type="button" variant="outline" onClick={onCancel}>

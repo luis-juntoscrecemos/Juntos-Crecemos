@@ -1,0 +1,85 @@
+TASK: Fix donation form spacing, campaign progress updates, dashboard auto-refresh, chart tooltip spacing, and add preset “Cantidades” picker in campaign edit.
+
+CONTEXT
+- Public donations are being “simulated as real” by inserting records into the DB so they appear in the org admin dashboard.
+- We need UI polish + ensure aggregate metrics/progress reflect new donations + improve UX for editing campaign preset amounts.
+
+ISSUES TO FIX
+
+1) DONATION FORM: REMOVE EXTRA WHITESPACE ABOVE TOTAL + DONATE BUTTON
+Problem:
+- There is too much blank space between the “Términos y Condiciones” checkbox text and the sticky total + Donate button section.
+
+Fix:
+- Reduce vertical padding/margins in the form layout.
+- Ensure the bottom area (Total summary + Donate button) sits closer to the Terms row.
+- If a sticky bottom bar is being used:
+  - Make sure the form content container has correct bottom padding equal to the sticky bar height (no more).
+  - Remove any extra spacer divs (e.g., large `mb-*`, `pb-*`, `min-h-*`, `space-y-*` too large).
+Acceptance:
+- No large empty gap; the layout feels compact and consistent on desktop + mobile.
+
+2) CAMPAIGN PROGRESS BAR NOT UPDATING AFTER DONATION (Campañas page)
+Problem:
+- After donating to a campaign, the campaign’s goal/progress bar in “Campañas” does not move.
+
+Fix:
+- Ensure the progress bar is based on a computed “amount_raised” derived from donations for that campaign.
+- Update the campaigns list query to include the SUM of donation amounts for each campaign (filter by status='succeeded' if present).
+Implementation options (choose best for current stack):
+  A) Query campaigns + compute raised with a join/aggregation query (SQL view recommended)
+  B) Add a computed field via a DB view: `campaigns_with_raised` returning campaign + `raised_amount`
+Acceptance:
+- After creating a donation for Campaign X, its progress bar reflects the updated raised total.
+
+3) DASHBOARD CARDS SHOULD UPDATE WITHOUT MANUAL REFRESH
+Question: Is this possible? YES.
+Requirement:
+- When a donation is submitted (or when the donations table changes), the dashboard KPI cards + recent donations list should update automatically.
+
+Implementation (pick one based on what’s easiest with Supabase):
+Option A (Preferred): Supabase Realtime subscription
+- Subscribe to inserts on `donations` (or whichever table powers the dashboard).
+- On insert/update relevant to the current organization_id:
+  - Refresh KPI aggregates + chart data + recent donations list.
+Option B: Optimistic UI
+- After donation submit completes, update dashboard local state immediately (increment totals, prepend recent donation, refetch chart series).
+Option C: Polling fallback
+- Poll every 10–20 seconds while dashboard is open.
+
+Acceptance:
+- With the dashboard open, making a donation causes KPI cards + recent donations list to update without browser refresh.
+
+4) DASHBOARD MAIN CHART TOOLTIP: ADD SPACE BETWEEN AMOUNT AND “Monto”
+Problem:
+- Hover tooltip text shows amount and “Monto” with no space.
+
+Fix:
+- Update tooltip formatter/string so it renders like: “{amount} Monto” OR “Monto: {amount}”.
+- Ensure spacing is correct in all tooltip cases.
+
+5) CAMPAIGN EDIT: ADD “CANTIDADES” PICKER OPTIONS FOR PRESET AMOUNTS
+Problem:
+- When org admin clicks “Editar” on a campaign, we want an easier way to set preset donation amounts (“Cantidades”).
+
+Fix:
+- In the campaign edit UI, add a “Cantidades sugeridas” section with:
+  - A set of predefined amount chips/buttons (example COP): 10.000, 25.000, 50.000, 100.000, 200.000, 500.000
+  - Admin can click to add/remove amounts to the campaign’s preset amounts.
+  - Also keep an “Agregar otro monto” input for custom values (optional but recommended).
+Rules:
+- Store selected amounts in the campaign record (e.g., `preset_amounts` int[] or jsonb).
+- Validate: positive integers, unique, sorted ascending.
+Acceptance:
+- After editing a campaign’s “Cantidades”, the public donation page `/donar/[campaign-slug]` shows exactly those preset amounts.
+
+DELIVERABLES
+- Donation form spacing fixes (CSS/layout)
+- Campaign list progress bar uses live raised total from donations
+- Dashboard auto-updates (realtime subscription preferred, with fallback)
+- Tooltip spacing fix
+- Campaign edit “Cantidades” picker + persistence
+
+PLEASE NOTE
+- Donations inserted from the public form must include campaign_id and organization_id so all aggregates can update correctly.
+- Filter sums by donation status='succeeded' (or current equivalent) so “pending/failed” don’t inflate progress.

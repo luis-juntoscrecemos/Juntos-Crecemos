@@ -487,9 +487,7 @@ function DonationForm({ campaign, organization, feePercent, orgSlug }: DonationF
           )}
         />
 
-        <div className="pb-40" aria-hidden="true" />
-
-        <div className="sticky bottom-0 bg-card border-t -mx-6 px-6 py-4 -mb-6 rounded-b-md z-10" data-testid="section-total-summary">
+        <div className="bg-card border-t -mx-6 px-6 py-4 -mb-6 rounded-b-md" data-testid="section-total-summary">
           <div className="space-y-1.5 text-sm mb-4">
             <div className="flex justify-between">
               <span className="text-muted-foreground">Donación</span>

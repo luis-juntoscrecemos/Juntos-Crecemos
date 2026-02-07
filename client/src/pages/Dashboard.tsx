@@ -123,23 +123,29 @@ export default function Dashboard() {
 
   const { start, end } = useMemo(() => getDateRange(datePreset), [datePreset]);
 
+  const POLL_INTERVAL = 15000;
+
   const { data: overviewRes, isLoading: overviewLoading } = useQuery({
     queryKey: ['/api/dashboard/overview', start, end],
     queryFn: () => dashboardApi.getOverview(start, end),
+    refetchInterval: POLL_INTERVAL,
   });
 
   const { data: seriesRes, isLoading: seriesLoading } = useQuery({
     queryKey: ['/api/dashboard/series', start, end],
     queryFn: () => dashboardApi.getSeries(start, end),
+    refetchInterval: POLL_INTERVAL,
   });
 
   const { data: campaignsRes, isLoading: campaignsLoading } = useQuery<{ data?: CampaignWithTotals[] }>({
     queryKey: ['/api/campaigns'],
+    refetchInterval: POLL_INTERVAL,
   });
 
   const { data: recentRes, isLoading: recentLoading } = useQuery({
     queryKey: ['/api/dashboard/recent-donations', start, end],
     queryFn: () => dashboardApi.getRecentDonations(start, end, 15),
+    refetchInterval: POLL_INTERVAL,
   });
 
   const isLoading = overviewLoading || campaignsLoading || seriesLoading || recentLoading;
@@ -276,7 +282,7 @@ export default function Dashboard() {
                   content={
                     <ChartTooltipContent
                       labelFormatter={(label) => formatChartDate(label as string)}
-                      formatter={(value) => [formatCurrency(value as number), 'Monto']}
+                      formatter={(value) => [`Monto: ${formatCurrency(value as number)}`, '']}
                     />
                   }
                 />

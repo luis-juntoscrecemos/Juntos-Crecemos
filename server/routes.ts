@@ -494,8 +494,8 @@ export async function registerRoutes(
         return res.json({ data: [] });
       }
 
-      const { data, error } = await supabase
-        .from('campaigns_with_totals')
+      const { data: campaigns, error } = await supabase
+        .from('campaigns')
         .select('*')
         .eq('org_id', req.organizationId)
         .order('created_at', { ascending: false });
@@ -505,7 +505,27 @@ export async function registerRoutes(
         return res.status(400).json({ error: 'Error al obtener campañas' });
       }
 
-      res.json({ data: data || [] });
+      const { data: donations } = await supabase
+        .from('donations')
+        .select('campaign_id, amount_minor')
+        .eq('org_id', req.organizationId)
+        .eq('status', 'paid');
+
+      const donationsByCampaign = new Map<string, { raised_minor: number; donations_count: number }>();
+      for (const d of donations || []) {
+        const existing = donationsByCampaign.get(d.campaign_id) || { raised_minor: 0, donations_count: 0 };
+        existing.raised_minor += d.amount_minor || 0;
+        existing.donations_count += 1;
+        donationsByCampaign.set(d.campaign_id, existing);
+      }
+
+      const campaignsWithTotals = (campaigns || []).map(c => ({
+        ...c,
+        raised_minor: donationsByCampaign.get(c.id)?.raised_minor || 0,
+        donations_count: donationsByCampaign.get(c.id)?.donations_count || 0,
+      }));
+
+      res.json({ data: campaignsWithTotals });
     } catch (error) {
       console.error('Get campaigns error:', error);
       res.status(500).json({ error: 'Error al obtener campañas' });
@@ -516,18 +536,27 @@ export async function registerRoutes(
     try {
       const { id } = req.params;
 
-      const { data, error } = await supabase
-        .from('campaigns_with_totals')
+      const { data: campaign, error } = await supabase
+        .from('campaigns')
         .select('*')
         .eq('id', id)
         .eq('org_id', req.organizationId)
         .single();
 
-      if (error || !data) {
+      if (error || !campaign) {
         return res.status(404).json({ error: 'Campaña no encontrada' });
       }
 
-      res.json({ data });
+      const { data: donationAgg } = await supabase
+        .from('donations')
+        .select('amount_minor')
+        .eq('campaign_id', id)
+        .eq('status', 'paid');
+
+      const raised_minor = donationAgg?.reduce((sum, d) => sum + (d.amount_minor || 0), 0) || 0;
+      const donations_count = donationAgg?.length || 0;
+
+      res.json({ data: { ...campaign, raised_minor, donations_count } });
     } catch (error) {
       console.error('Get campaign error:', error);
       res.status(500).json({ error: 'Error al obtener la campaña' });
@@ -540,7 +569,8 @@ export async function registerRoutes(
         return res.status(400).json({ error: 'Debes tener una organización para crear campañas' });
       }
 
-      const { title, slug, description, goal_amount, currency, is_active, suggested_amounts } = req.body;
+      const { title, slug, description, goal_amount, currency, is_active, suggested_amounts: rawAmounts } = req.body;
+      const suggested_amounts = rawAmounts ? (typeof rawAmounts === 'string' ? JSON.parse(rawAmounts) : rawAmounts) : null;
       let imageUrl = null;
 
       if (req.file) {
@@ -613,7 +643,8 @@ export async function registerRoutes(
   app.patch('/api/campaigns/:id', authMiddleware, upload.single('image'), async (req: AuthenticatedRequest & { file?: Express.Multer.File }, res) => {
     try {
       const { id } = req.params;
-      const { title, slug, description, goal_amount, currency, is_active, suggested_amounts, image_url } = req.body;
+      const { title, slug, description, goal_amount, currency, is_active, suggested_amounts: rawAmounts, image_url } = req.body;
+      const suggested_amounts = rawAmounts ? (typeof rawAmounts === 'string' ? JSON.parse(rawAmounts) : rawAmounts) : null;
       
       let imageUrl = image_url;
 
@@ -847,9 +878,8 @@ export async function registerRoutes(
         return res.status(404).json({ error: 'Organización no encontrada' });
       }
 
-      // Get campaign by slug
       const { data: campaign, error: campaignError } = await supabase
-        .from('campaigns_with_totals')
+        .from('campaigns')
         .select('*')
         .eq('org_id', org.id)
         .eq('slug', campaignSlug)
@@ -860,9 +890,19 @@ export async function registerRoutes(
         return res.status(404).json({ error: 'Campaña no encontrada' });
       }
 
+      const { data: donationAgg } = await supabase
+        .from('donations')
+        .select('amount_minor')
+        .eq('campaign_id', campaign.id)
+        .eq('org_id', org.id)
+        .eq('status', 'paid');
+
+      const raised_minor = donationAgg?.reduce((sum, d) => sum + (d.amount_minor || 0), 0) || 0;
+      const donations_count = donationAgg?.length || 0;
+
       res.json({
         data: {
-          campaign,
+          campaign: { ...campaign, raised_minor, donations_count },
           organization: org,
           processing_fee_percent: PROCESSING_FEE_PERCENT,
         },
@@ -1386,18 +1426,37 @@ export async function registerRoutes(
         return res.status(404).json({ error: 'Organización no encontrada' });
       }
 
-      // Get active campaigns
       const { data: campaigns } = await supabase
-        .from('campaigns_with_totals')
+        .from('campaigns')
         .select('*')
         .eq('org_id', org.id)
         .eq('is_active', true)
         .order('created_at', { ascending: false });
 
+      const { data: orgDonations } = await supabase
+        .from('donations')
+        .select('campaign_id, amount_minor')
+        .eq('org_id', org.id)
+        .eq('status', 'paid');
+
+      const donationsByCampaign = new Map<string, { raised_minor: number; donations_count: number }>();
+      for (const d of orgDonations || []) {
+        const existing = donationsByCampaign.get(d.campaign_id) || { raised_minor: 0, donations_count: 0 };
+        existing.raised_minor += d.amount_minor || 0;
+        existing.donations_count += 1;
+        donationsByCampaign.set(d.campaign_id, existing);
+      }
+
+      const campaignsWithTotals = (campaigns || []).map(c => ({
+        ...c,
+        raised_minor: donationsByCampaign.get(c.id)?.raised_minor || 0,
+        donations_count: donationsByCampaign.get(c.id)?.donations_count || 0,
+      }));
+
       res.json({
         data: {
           organization: org,
-          campaigns: campaigns || [],
+          campaigns: campaignsWithTotals,
         }
       });
     } catch (error) {
