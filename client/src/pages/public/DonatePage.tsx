@@ -28,6 +28,7 @@ const donationIntentFormSchema = insertDonationIntentSchema
   .extend({
     donor_first_name: z.string().default(''),
     donor_last_name: z.string().default(''),
+    donor_email: z.string().min(1, 'Correo electrónico requerido').email('Correo electrónico inválido'),
     terms_accepted: z.boolean(),
   })
   .superRefine((data, ctx) => {
@@ -74,6 +75,7 @@ function DonationForm({ campaign, organization, feePercent, orgSlug }: DonationF
   const [cardNumber, setCardNumber] = useState('');
   const [cardExpiry, setCardExpiry] = useState('');
   const [cardCvv, setCardCvv] = useState('');
+  const [cardErrors, setCardErrors] = useState<Record<string, string>>({});
 
   const suggestedAmounts: number[] = campaign.suggested_amounts || [];
 
@@ -143,9 +145,39 @@ function DonationForm({ campaign, organization, feePercent, orgSlug }: DonationF
     return digits;
   };
 
+  const validateCardFields = (): boolean => {
+    const errors: Record<string, string> = {};
+    const rawCardNumber = cardNumber.replace(/\s/g, '');
+
+    if (!cardName.trim()) {
+      errors.cardName = 'Nombre en la tarjeta requerido';
+    }
+    if (!rawCardNumber || rawCardNumber.length < 13) {
+      errors.cardNumber = 'Número de tarjeta inválido';
+    }
+    if (!cardExpiry || cardExpiry.length < 5) {
+      errors.cardExpiry = 'Fecha de vencimiento requerida';
+    } else {
+      const [mm, yy] = cardExpiry.split('/');
+      const month = parseInt(mm, 10);
+      if (month < 1 || month > 12) {
+        errors.cardExpiry = 'Mes inválido';
+      }
+    }
+    if (!cardCvv || cardCvv.length < 3) {
+      errors.cardCvv = 'CVV requerido (mín. 3 dígitos)';
+    }
+
+    setCardErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
   const onSubmit = (data: DonationIntentFormData) => {
     if (!data.terms_accepted) {
       form.setError('terms_accepted', { message: 'Debes aceptar los términos' });
+      return;
+    }
+    if (!validateCardFields()) {
       return;
     }
     createMutation.mutate(data);
@@ -335,7 +367,7 @@ function DonationForm({ campaign, organization, feePercent, orgSlug }: DonationF
             name="donor_email"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Correo electrónico</FormLabel>
+                <FormLabel>Correo electrónico <span className="text-destructive">*</span></FormLabel>
                 <FormControl>
                   <Input
                     {...field}
@@ -344,6 +376,7 @@ function DonationForm({ campaign, organization, feePercent, orgSlug }: DonationF
                     data-testid="input-donor-email"
                   />
                 </FormControl>
+                <p className="text-xs text-muted-foreground">Te enviaremos el recibo de tu donación</p>
                 <FormMessage />
               </FormItem>
             )}
@@ -408,57 +441,65 @@ function DonationForm({ campaign, organization, feePercent, orgSlug }: DonationF
             <CreditCard className="w-4 h-4 text-muted-foreground" />
             <label className="text-sm font-medium">Pago con tarjeta</label>
           </div>
-          <p className="text-xs text-muted-foreground flex items-center gap-1">
-            <Lock className="w-3 h-3" />
-            Procesamiento de pagos próximamente
-          </p>
           <div className="space-y-3">
             <div>
-              <label className="text-sm text-muted-foreground mb-1.5 block">Nombre en la tarjeta</label>
+              <label className="text-sm text-muted-foreground mb-1.5 block">Nombre en la tarjeta <span className="text-destructive">*</span></label>
               <Input
                 value={cardName}
-                onChange={(e) => setCardName(e.target.value)}
+                onChange={(e) => { setCardName(e.target.value); setCardErrors(prev => ({ ...prev, cardName: '' })); }}
                 placeholder="Juan Pérez"
                 data-testid="input-card-name"
-                autoComplete="off"
+                autoComplete="cc-name"
+                className={cardErrors.cardName ? 'border-destructive' : ''}
               />
+              {cardErrors.cardName && <p className="text-sm text-destructive mt-1">{cardErrors.cardName}</p>}
             </div>
             <div>
-              <label className="text-sm text-muted-foreground mb-1.5 block">Número de tarjeta</label>
+              <label className="text-sm text-muted-foreground mb-1.5 block">Número de tarjeta <span className="text-destructive">*</span></label>
               <Input
                 value={cardNumber}
-                onChange={(e) => setCardNumber(formatCardNumber(e.target.value))}
+                onChange={(e) => { setCardNumber(formatCardNumber(e.target.value)); setCardErrors(prev => ({ ...prev, cardNumber: '' })); }}
                 placeholder="0000 0000 0000 0000"
                 maxLength={19}
                 data-testid="input-card-number"
-                autoComplete="off"
+                autoComplete="cc-number"
+                className={cardErrors.cardNumber ? 'border-destructive' : ''}
               />
+              {cardErrors.cardNumber && <p className="text-sm text-destructive mt-1">{cardErrors.cardNumber}</p>}
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-sm text-muted-foreground mb-1.5 block">Vencimiento</label>
+                <label className="text-sm text-muted-foreground mb-1.5 block">Vencimiento <span className="text-destructive">*</span></label>
                 <Input
                   value={cardExpiry}
-                  onChange={(e) => setCardExpiry(formatExpiry(e.target.value))}
+                  onChange={(e) => { setCardExpiry(formatExpiry(e.target.value)); setCardErrors(prev => ({ ...prev, cardExpiry: '' })); }}
                   placeholder="MM/YY"
                   maxLength={5}
                   data-testid="input-card-expiry"
-                  autoComplete="off"
+                  autoComplete="cc-exp"
+                  className={cardErrors.cardExpiry ? 'border-destructive' : ''}
                 />
+                {cardErrors.cardExpiry && <p className="text-sm text-destructive mt-1">{cardErrors.cardExpiry}</p>}
               </div>
               <div>
-                <label className="text-sm text-muted-foreground mb-1.5 block">CVV</label>
+                <label className="text-sm text-muted-foreground mb-1.5 block">CVV <span className="text-destructive">*</span></label>
                 <Input
                   value={cardCvv}
-                  onChange={(e) => setCardCvv(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                  onChange={(e) => { setCardCvv(e.target.value.replace(/\D/g, '').slice(0, 4)); setCardErrors(prev => ({ ...prev, cardCvv: '' })); }}
                   placeholder="123"
                   maxLength={4}
                   type="password"
                   data-testid="input-card-cvv"
-                  autoComplete="off"
+                  autoComplete="cc-csc"
+                  className={cardErrors.cardCvv ? 'border-destructive' : ''}
                 />
+                {cardErrors.cardCvv && <p className="text-sm text-destructive mt-1">{cardErrors.cardCvv}</p>}
               </div>
             </div>
+            <p className="text-xs text-muted-foreground flex items-center gap-1">
+              <Lock className="w-3 h-3" />
+              Todos los campos de tarjeta son obligatorios
+            </p>
           </div>
         </div>
 

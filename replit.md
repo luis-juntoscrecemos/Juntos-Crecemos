@@ -61,6 +61,7 @@ Core tables:
 - `SUPABASE_URL`: Supabase project URL
 - `SUPABASE_ANON_KEY`: Public anon key (used by frontend for auth)
 - `SUPABASE_SERVICE_ROLE_KEY`: Service role key (backend only, never exposed)
+- `RESEND_API_KEY`: Resend email service API key (for sending donation receipts)
 
 Note: Frontend receives Supabase config via `/api/config` endpoint to avoid needing VITE_ prefixed env vars.
 

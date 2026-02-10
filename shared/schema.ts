@@ -261,7 +261,7 @@ export const insertDonationIntentSchema = z.object({
   recurring_interval: z.enum(['weekly', 'monthly', 'semiannual', 'yearly']).nullable().optional(),
   donor_first_name: z.string().min(1, 'Nombre requerido'),
   donor_last_name: z.string(),
-  donor_email: z.string().email('Correo electrónico inválido'),
+  donor_email: z.string().min(1, 'Correo electrónico requerido').email('Correo electrónico inválido'),
   donor_note: z.string().nullable().optional(),
   is_anonymous: z.boolean().default(false),
   terms_accepted: z.literal(true, { errorMap: () => ({ message: 'Debes aceptar los términos' }) }),

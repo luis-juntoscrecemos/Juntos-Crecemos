@@ -5,6 +5,7 @@ import { authMiddleware, optionalAuthMiddleware, donorAuthMiddleware, type Authe
 import { insertDonationIntentSchema } from "@shared/schema";
 import multer, { FileFilterCallback } from "multer";
 import { customAlphabet } from "nanoid";
+import { sendDonationReceipt } from "./email";
 
 const PROCESSING_FEE_PERCENT = 4.5;
 const nanoidShort = customAlphabet('0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ', 6);
@@ -1034,7 +1035,7 @@ export async function registerRoutes(
 
       const { data: campaign, error: campaignError } = await supabase
         .from('campaigns')
-        .select('id, org_id, is_active, currency')
+        .select('id, org_id, is_active, currency, title')
         .eq('slug', campaign_slug)
         .eq('org_id', org.id)
         .single();
@@ -1042,6 +1043,12 @@ export async function registerRoutes(
       if (campaignError || !campaign || !campaign.is_active) {
         return res.status(400).json({ error: 'Campaña no válida o inactiva' });
       }
+
+      const { data: orgDetails } = await supabase
+        .from('organizations')
+        .select('name')
+        .eq('id', org.id)
+        .single();
 
       const fee_percent = cover_fees ? PROCESSING_FEE_PERCENT : null;
       const fee_amount = cover_fees ? Math.round(amount * PROCESSING_FEE_PERCENT / 100) : 0;
@@ -1116,6 +1123,24 @@ export async function registerRoutes(
         console.error('Create donation record error:', donationError?.message || donationError);
         return res.status(500).json({ error: 'Error al registrar la donación' });
       }
+
+      const paidAt = new Date().toISOString();
+      sendDonationReceipt({
+        donorEmail: donor_email,
+        donorName: donorFullName,
+        organizationName: orgDetails?.name || 'Organización',
+        campaignTitle: campaign.title || 'Campaña',
+        amount,
+        feeAmount: fee_amount,
+        totalAmount: total_amount,
+        currency: campaign.currency || 'COP',
+        donationType: donation_type,
+        recurringInterval: donation_type === 'recurring' ? recurring_interval ?? null : null,
+        shortId: short_id,
+        isAnonymous: is_anonymous,
+        donorNote: donor_note || null,
+        paidAt,
+      }).catch(err => console.error('Failed to send donation receipt email:', err));
 
       res.status(201).json({ data: { intentId: intent.id } });
     } catch (error) {
