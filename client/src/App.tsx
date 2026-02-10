@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { Switch, Route, Redirect, useLocation } from "wouter";
+import { Switch, Route, useLocation } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider, useQuery } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -32,16 +32,22 @@ import DonorSettings from "@/pages/donor/DonorSettings";
 import NoDonorProfile from "@/pages/donor/NoDonorProfile";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { user, loading } = useAuth();
+  const { user, authLoading, isLoading, isOrgUser, isDonor, checkDone } = useUserType();
   const [, setLocation] = useLocation();
 
   useEffect(() => {
-    if (!loading && !user) {
+    if (!authLoading && !user) {
       setLocation('/login');
     }
-  }, [loading, user, setLocation]);
+  }, [authLoading, user, setLocation]);
 
-  if (loading) {
+  useEffect(() => {
+    if (!isLoading && user && checkDone && !isOrgUser && isDonor) {
+      setLocation('/donor');
+    }
+  }, [isLoading, user, checkDone, isOrgUser, isDonor, setLocation]);
+
+  if (isLoading) {
     return <LoadingPage />;
   }
 
@@ -49,20 +55,48 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
     return <LoadingPage />;
   }
 
+  if (checkDone && !isOrgUser && isDonor) {
+    return <LoadingPage />;
+  }
+
   return <AppShell>{children}</AppShell>;
 }
 
+function useUserType() {
+  const { user, loading: authLoading } = useAuth();
+
+  const { data: checkResponse, isLoading: checkLoading, isError } = useQuery<{ data?: { isDonor: boolean; isOrgUser: boolean } }>({
+    queryKey: ['/api/donor/check'],
+    queryFn: () => donorApi.checkAccount(),
+    enabled: !!user,
+    retry: 1,
+  });
+
+  const isLoading = authLoading || (!!user && checkLoading);
+  const isOrgUser = checkResponse?.data?.isOrgUser ?? false;
+  const isDonor = checkResponse?.data?.isDonor ?? false;
+  const checkDone = !checkLoading && (!!checkResponse?.data || isError);
+
+  return { user, authLoading, isLoading, isOrgUser, isDonor, checkDone, isError };
+}
+
 function AuthRoute({ children }: { children: React.ReactNode }) {
-  const { user, loading } = useAuth();
+  const { user, authLoading, isOrgUser, isDonor, checkDone, isError } = useUserType();
   const [, setLocation] = useLocation();
 
   useEffect(() => {
-    if (!loading && user) {
-      setLocation('/dashboard');
+    if (!authLoading && user && (checkDone || isError)) {
+      if (isOrgUser || isError) {
+        setLocation('/dashboard');
+      } else if (isDonor) {
+        setLocation('/donor');
+      } else {
+        setLocation('/dashboard');
+      }
     }
-  }, [loading, user, setLocation]);
+  }, [authLoading, user, isOrgUser, isDonor, checkDone, isError, setLocation]);
 
-  if (loading) {
+  if (authLoading) {
     return <LoadingPage />;
   }
 
@@ -127,11 +161,32 @@ function DonorProtectedRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+function SmartRedirect() {
+  const { user, authLoading, isLoading, isOrgUser, isDonor, checkDone, isError } = useUserType();
+  const [, setLocation] = useLocation();
+
+  useEffect(() => {
+    if (!authLoading && !user) {
+      setLocation('/login');
+    } else if (!isLoading && user && (checkDone || isError)) {
+      if (isOrgUser || isError) {
+        setLocation('/dashboard');
+      } else if (isDonor) {
+        setLocation('/donor');
+      } else {
+        setLocation('/login');
+      }
+    }
+  }, [authLoading, isLoading, user, isOrgUser, isDonor, checkDone, isError, setLocation]);
+
+  return <LoadingPage />;
+}
+
 function Router() {
   return (
     <Switch>
       <Route path="/">
-        <Redirect to="/dashboard" />
+        <SmartRedirect />
       </Route>
 
       <Route path="/login">

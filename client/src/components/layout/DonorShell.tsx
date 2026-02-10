@@ -2,14 +2,13 @@ import { Link, useLocation } from 'wouter';
 import { useQuery } from '@tanstack/react-query';
 import { 
   LayoutDashboard, 
-  Heart, 
   History,
   Settings,
   LogOut,
   Star
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import {
   Sidebar,
   SidebarContent,
@@ -110,15 +109,19 @@ function DonorSidebar({ profile }: { profile?: DonorAccount | null }) {
   );
 }
 
-function TopBar() {
+function TopBar({ profile }: { profile?: DonorAccount | null }) {
+  const displayName = profile?.full_name || 'Donante';
+
   return (
     <header className="h-14 border-b bg-card flex items-center justify-between px-4 gap-4">
       <div className="flex items-center gap-2">
         <SidebarTrigger data-testid="button-sidebar-toggle" />
       </div>
       <div className="flex items-center gap-3">
-        <span className="text-sm text-muted-foreground">Portal de Donante</span>
-        <Heart className="h-5 w-5 text-primary" />
+        <span className="text-sm text-muted-foreground" data-testid="text-donor-welcome">
+          Bienvenido, {displayName}!
+        </span>
+        <img src={juntosLogo} alt="Juntos Crecemos" className="h-8 w-8 object-contain" />
       </div>
     </header>
   );
@@ -145,7 +148,7 @@ export function DonorShell({ children }: DonorShellProps) {
       <div className="flex h-screen w-full">
         <DonorSidebar profile={profile} />
         <div className="flex flex-col flex-1 overflow-hidden">
-          <TopBar />
+          <TopBar profile={profile} />
           <main className="flex-1 overflow-auto p-6 bg-background">
             <div className="max-w-6xl mx-auto">
               {children}
