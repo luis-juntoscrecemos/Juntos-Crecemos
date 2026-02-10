@@ -87,7 +87,6 @@ The Resend account is linked to `luis@juntoscrecemos.co`. To send donation recei
 - `GET /api/donations/:id` - Get single donation detail with campaign/org info
 
 ### Public (no auth)
-- `GET /api/public/organizations?q=` - Search active organizations by name (returns id, name, slug, logo_url, description, city, country, verified)
 - `GET /api/public/campaigns/:orgSlug/:campaignSlug` - Get public campaign + organization
 - `GET /api/public/organizations/:slug` - Get public organization profile with active campaigns
 - `POST /api/public/donations` - Create donation (for public donation form)

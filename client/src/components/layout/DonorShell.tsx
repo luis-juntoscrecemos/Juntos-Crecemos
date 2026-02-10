@@ -26,7 +26,7 @@ import {
 } from '@/components/ui/sidebar';
 import { useAuth } from '@/contexts/AuthContext';
 import { Separator } from '@/components/ui/separator';
-import juntosLogoColor from '@/assets/juntos-crecemos-logo-color.png';
+import juntosLogo from '@/assets/juntos-crecemos-logo.png';
 import type { DonorAccount } from '@shared/schema';
 
 const donorNavItems = [
@@ -48,7 +48,7 @@ function DonorSidebar({ profile }: { profile?: DonorAccount | null }) {
       <SidebarHeader className="p-4">
         <Link href="/donor">
           <div className="flex items-center gap-3 cursor-pointer">
-            <img src={juntosLogoColor} alt="Juntos Crecemos" className="h-10 w-10 object-contain" />
+            <img src={juntosLogo} alt="Juntos Crecemos" className="h-10 w-10 object-contain" />
             <div className="flex flex-col">
               <span className="font-semibold text-sm">Juntos Crecemos</span>
               <span className="text-xs text-muted-foreground">Portal de Donante</span>
@@ -110,20 +110,15 @@ function DonorSidebar({ profile }: { profile?: DonorAccount | null }) {
   );
 }
 
-function TopBar({ profile }: { profile?: DonorAccount | null }) {
-  const { user } = useAuth();
-  const displayName = profile?.full_name || user?.email?.split('@')[0] || 'Donante';
-
+function TopBar() {
   return (
     <header className="h-14 border-b bg-card flex items-center justify-between px-4 gap-4">
       <div className="flex items-center gap-2">
         <SidebarTrigger data-testid="button-sidebar-toggle" />
       </div>
       <div className="flex items-center gap-3">
-        <span className="text-sm text-muted-foreground" data-testid="text-donor-welcome">
-          Bienvenidos, {displayName}!
-        </span>
-        <Heart className="h-5 w-5 text-primary fill-primary" />
+        <span className="text-sm text-muted-foreground">Portal de Donante</span>
+        <Heart className="h-5 w-5 text-primary" />
       </div>
     </header>
   );
@@ -150,7 +145,7 @@ export function DonorShell({ children }: DonorShellProps) {
       <div className="flex h-screen w-full">
         <DonorSidebar profile={profile} />
         <div className="flex flex-col flex-1 overflow-hidden">
-          <TopBar profile={profile} />
+          <TopBar />
           <main className="flex-1 overflow-auto p-6 bg-background">
             <div className="max-w-6xl mx-auto">
               {children}
