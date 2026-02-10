@@ -2,6 +2,15 @@ import { Resend } from 'resend';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 interface DonationReceiptData {
   donorEmail: string;
   donorName: string;
@@ -54,6 +63,12 @@ export async function sendDonationReceipt(data: DonationReceiptData): Promise<{ 
 
     const recurringLabel = data.recurringInterval ? CADENCE_LABELS[data.recurringInterval] || data.recurringInterval : null;
 
+    const safeDonorName = escapeHtml(data.donorName);
+    const safeOrgName = escapeHtml(data.organizationName);
+    const safeCampaignTitle = escapeHtml(data.campaignTitle);
+    const safeShortId = escapeHtml(data.shortId);
+    const safeDonorNote = data.donorNote ? escapeHtml(data.donorNote) : null;
+
     const htmlContent = `
 <!DOCTYPE html>
 <html lang="es">
@@ -77,7 +92,7 @@ export async function sendDonationReceipt(data: DonationReceiptData): Promise<{ 
         <table style="width:100%;border-collapse:collapse;">
           <tr>
             <td style="padding:8px 0;color:#71717a;font-size:13px;">ID Transacción</td>
-            <td style="padding:8px 0;text-align:right;font-family:monospace;font-size:13px;font-weight:600;color:#18181b;">#${data.shortId}</td>
+            <td style="padding:8px 0;text-align:right;font-family:monospace;font-size:13px;font-weight:600;color:#18181b;">#${safeShortId}</td>
           </tr>
           <tr>
             <td style="padding:8px 0;color:#71717a;font-size:13px;">Fecha</td>
@@ -85,15 +100,15 @@ export async function sendDonationReceipt(data: DonationReceiptData): Promise<{ 
           </tr>
           <tr>
             <td style="padding:8px 0;color:#71717a;font-size:13px;">Donante</td>
-            <td style="padding:8px 0;text-align:right;font-size:13px;color:#18181b;">${data.isAnonymous ? 'Anónimo' : data.donorName}</td>
+            <td style="padding:8px 0;text-align:right;font-size:13px;color:#18181b;">${data.isAnonymous ? 'Anónimo' : safeDonorName}</td>
           </tr>
           <tr>
             <td style="padding:8px 0;color:#71717a;font-size:13px;">Organización</td>
-            <td style="padding:8px 0;text-align:right;font-size:13px;color:#18181b;">${data.organizationName}</td>
+            <td style="padding:8px 0;text-align:right;font-size:13px;color:#18181b;">${safeOrgName}</td>
           </tr>
           <tr>
             <td style="padding:8px 0;color:#71717a;font-size:13px;">Campaña</td>
-            <td style="padding:8px 0;text-align:right;font-size:13px;color:#18181b;">${data.campaignTitle}</td>
+            <td style="padding:8px 0;text-align:right;font-size:13px;color:#18181b;">${safeCampaignTitle}</td>
           </tr>
           <tr>
             <td style="padding:8px 0;color:#71717a;font-size:13px;">Tipo</td>
@@ -120,18 +135,18 @@ export async function sendDonationReceipt(data: DonationReceiptData): Promise<{ 
           </tr>
         </table>
 
-        ${data.donorNote ? `
+        ${safeDonorNote ? `
         <div style="margin:16px 0;border-top:1px solid #e4e4e7;"></div>
         <div style="background:#f4f4f5;border-radius:8px;padding:12px;">
           <p style="color:#71717a;font-size:12px;margin:0 0 4px;">Tu mensaje:</p>
-          <p style="color:#18181b;font-size:13px;margin:0;">${data.donorNote}</p>
+          <p style="color:#18181b;font-size:13px;margin:0;">${safeDonorNote}</p>
         </div>
         ` : ''}
       </div>
       
       <div style="background:#f4f4f5;padding:16px 24px;text-align:center;">
         <p style="color:#71717a;font-size:12px;margin:0;">
-          Este recibo fue generado por Juntos Crecemos en nombre de ${data.organizationName}.
+          Este recibo fue generado por Juntos Crecemos en nombre de ${safeOrgName}.
         </p>
       </div>
     </div>
@@ -142,7 +157,7 @@ export async function sendDonationReceipt(data: DonationReceiptData): Promise<{ 
     const { error } = await resend.emails.send({
       from: 'Juntos Crecemos <onboarding@resend.dev>',
       to: data.donorEmail,
-      subject: `Recibo de donación #${data.shortId} - ${data.organizationName}`,
+      subject: `Recibo de donación #${safeShortId} - ${safeOrgName}`,
       html: htmlContent,
     });
 

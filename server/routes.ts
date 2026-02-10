@@ -1024,7 +1024,7 @@ export async function registerRoutes(
 
       const { data: org, error: orgError } = await supabase
         .from('organizations')
-        .select('id')
+        .select('id, name')
         .eq('slug', org_slug)
         .eq('status', 'active')
         .single();
@@ -1043,12 +1043,6 @@ export async function registerRoutes(
       if (campaignError || !campaign || !campaign.is_active) {
         return res.status(400).json({ error: 'Campaña no válida o inactiva' });
       }
-
-      const { data: orgDetails } = await supabase
-        .from('organizations')
-        .select('name')
-        .eq('id', org.id)
-        .single();
 
       const fee_percent = cover_fees ? PROCESSING_FEE_PERCENT : null;
       const fee_amount = cover_fees ? Math.round(amount * PROCESSING_FEE_PERCENT / 100) : 0;
@@ -1128,7 +1122,7 @@ export async function registerRoutes(
       sendDonationReceipt({
         donorEmail: donor_email,
         donorName: donorFullName,
-        organizationName: orgDetails?.name || 'Organización',
+        organizationName: org.name || 'Organización',
         campaignTitle: campaign.title || 'Campaña',
         amount,
         feeAmount: fee_amount,
