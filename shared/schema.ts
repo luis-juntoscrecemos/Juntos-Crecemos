@@ -89,6 +89,7 @@ export type InsertCampaign = z.infer<typeof insertCampaignSchema>;
 // Donations
 export interface Donation {
   id: string;
+  short_id: string | null;
   campaign_id: string;
   org_id: string;
   donor_id: string | null;
@@ -231,6 +232,7 @@ export interface DonationDetail extends Donation {
 // Donation Intents
 export interface DonationIntent {
   id: string;
+  short_id: string | null;
   organization_id: string;
   campaign_id: string;
   amount: number;

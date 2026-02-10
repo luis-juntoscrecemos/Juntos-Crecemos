@@ -4,8 +4,10 @@ import { supabase, claimDonationsForDonor } from "./supabase";
 import { authMiddleware, optionalAuthMiddleware, donorAuthMiddleware, type AuthenticatedRequest } from "./middleware/auth";
 import { insertDonationIntentSchema } from "@shared/schema";
 import multer, { FileFilterCallback } from "multer";
+import { customAlphabet } from "nanoid";
 
 const PROCESSING_FEE_PERCENT = 4.5;
+const nanoidShort = customAlphabet('0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ', 6);
 
 // Configure multer for file uploads
 const upload = multer({
@@ -1045,6 +1047,7 @@ export async function registerRoutes(
       const fee_amount = cover_fees ? Math.round(amount * PROCESSING_FEE_PERCENT / 100) : 0;
       const total_amount = amount + fee_amount;
 
+      const short_id = nanoidShort();
       const { data: intent, error: insertError } = await supabase
         .from('donation_intents')
         .insert({
@@ -1064,6 +1067,7 @@ export async function registerRoutes(
           donor_note: donor_note || null,
           is_anonymous,
           status: 'pending',
+          short_id,
         })
         .select('id')
         .single();
@@ -1092,6 +1096,7 @@ export async function registerRoutes(
           donor_name: donorFullName,
           donor_email,
           paid_at: new Date().toISOString(),
+          short_id,
         });
 
       if (donationError) {

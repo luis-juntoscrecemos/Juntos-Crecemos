@@ -161,6 +161,9 @@ Run `docs/donor-dashboard-setup.sql` in Supabase Dashboard to create:
 - RLS policies for donor access
 - claim_donations_for_donor() function
 
+Run `docs/short-id-migration.sql` in Supabase Dashboard to add:
+- short_id column to donations and donation_intents tables
+
 Run `docs/recurring-migration.sql` in Supabase Dashboard to add:
 - allow_recurring, recurring_intervals, default_recurring_interval columns to campaigns table
 - These columns are optional; the app gracefully degrades if they don't exist

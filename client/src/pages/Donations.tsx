@@ -222,7 +222,7 @@ export default function DonationsPage() {
                       <TableCell>
                         <Link href={`/donations/${donation.id}`}>
                           <span className="font-mono text-sm text-primary cursor-pointer hover:underline" data-testid={`link-donation-${donation.id}`}>
-                            {donation.id.substring(0, 8)}...
+                            {donation.short_id || donation.id.substring(0, 8)}
                           </span>
                         </Link>
                       </TableCell>
