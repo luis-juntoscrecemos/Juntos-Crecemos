@@ -1,5 +1,6 @@
-import { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
 import { supabase, signIn, signUp, signOut } from '@/lib/supabase';
+import { queryClient } from '@/lib/queryClient';
 
 interface User {
   id: string;
@@ -20,6 +21,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const previousUserIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -28,7 +30,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (mounted) {
-          setUser(session?.user ? { id: session.user.id, email: session.user.email } : null);
+          const newUser = session?.user ? { id: session.user.id, email: session.user.email } : null;
+          previousUserIdRef.current = newUser?.id || null;
+          setUser(newUser);
           setLoading(false);
         }
       } catch (error) {
@@ -43,6 +47,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (mounted) {
+        const newUserId = session?.user?.id || null;
+        if (newUserId !== previousUserIdRef.current) {
+          queryClient.clear();
+        }
+        previousUserIdRef.current = newUserId;
         setUser(session?.user ? { id: session.user.id, email: session.user.email } : null);
         setLoading(false);
       }
@@ -66,6 +75,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const handleSignOut = useCallback(async () => {
     await signOut();
+    queryClient.clear();
     setUser(null);
   }, []);
 
