@@ -57,9 +57,11 @@ const CADENCE_LABELS: Record<string, string> = {
 export async function sendDonationReceipt(data: DonationReceiptData): Promise<{ success: boolean; error?: string }> {
   try {
     if (!process.env.RESEND_API_KEY) {
-      console.warn('RESEND_API_KEY not configured, skipping email');
+      console.warn('[Email] RESEND_API_KEY not configured, skipping email');
       return { success: false, error: 'Email service not configured' };
     }
+
+    console.log(`[Email] Sending donation receipt to ${data.donorEmail} for #${data.shortId}`);
 
     const recurringLabel = data.recurringInterval ? CADENCE_LABELS[data.recurringInterval] || data.recurringInterval : null;
 
@@ -154,21 +156,24 @@ export async function sendDonationReceipt(data: DonationReceiptData): Promise<{ 
 </body>
 </html>`;
 
+    const fromAddress = process.env.RESEND_FROM_EMAIL || 'Juntos Crecemos <onboarding@resend.dev>';
+
     const { error } = await resend.emails.send({
-      from: 'Juntos Crecemos <onboarding@resend.dev>',
+      from: fromAddress,
       to: data.donorEmail,
       subject: `Recibo de donación #${safeShortId} - ${safeOrgName}`,
       html: htmlContent,
     });
 
     if (error) {
-      console.error('Resend email error:', error);
+      console.error('[Email] Resend API error:', JSON.stringify(error));
       return { success: false, error: error.message };
     }
 
+    console.log(`[Email] Receipt sent successfully to ${data.donorEmail}`);
     return { success: true };
   } catch (err: any) {
-    console.error('Email send error:', err);
+    console.error('[Email] Unexpected error:', err?.message || err);
     return { success: false, error: err.message || 'Unknown email error' };
   }
 }

@@ -1134,7 +1134,11 @@ export async function registerRoutes(
         isAnonymous: is_anonymous,
         donorNote: donor_note || null,
         paidAt,
-      }).catch(err => console.error('Failed to send donation receipt email:', err));
+      }).then(result => {
+        if (!result.success) {
+          console.error(`[Email] Failed to send receipt for #${short_id}:`, result.error);
+        }
+      }).catch(err => console.error('[Email] Unexpected failure:', err));
 
       res.status(201).json({ data: { intentId: intent.id } });
     } catch (error) {

@@ -70,7 +70,9 @@ function AppSidebar({ organization }: { organization?: Organization | null }) {
             )}
             <div className="flex flex-col">
               <span className="font-semibold text-sm">{orgName}</span>
-              <span className="text-xs text-muted-foreground">Plataforma de Donaciones</span>
+              {!orgLogo && (
+                <span className="text-xs text-muted-foreground">Plataforma de Donaciones</span>
+              )}
             </div>
           </div>
         </Link>
@@ -151,7 +153,6 @@ function AppSidebar({ organization }: { organization?: Organization | null }) {
 
 function TopBar({ organization }: { organization?: Organization | null }) {
   const orgName = organization?.name || 'Juntos Crecemos';
-  const orgLogo = organization?.logo_url;
   
   return (
     <header className="h-14 border-b bg-card flex items-center justify-between px-4 gap-4">
@@ -159,17 +160,10 @@ function TopBar({ organization }: { organization?: Organization | null }) {
         <SidebarTrigger data-testid="button-sidebar-toggle" />
       </div>
       <div className="flex items-center gap-3">
-        <span className="text-sm text-muted-foreground">Bienvenido a {orgName}</span>
-        {orgLogo ? (
-          <Avatar className="h-8 w-8 rounded-md">
-            <AvatarImage src={orgLogo} alt={orgName} className="object-cover" />
-            <AvatarFallback className="rounded-md bg-primary text-primary-foreground font-bold text-xs">
-              {orgName.substring(0, 2).toUpperCase()}
-            </AvatarFallback>
-          </Avatar>
-        ) : (
-          <img src={juntosLogo} alt="Juntos Crecemos" className="h-8 w-8 object-contain" />
-        )}
+        <span className="text-sm text-muted-foreground" data-testid="text-welcome-message">
+          Bienvenidos, {orgName}!
+        </span>
+        <img src={juntosLogo} alt="Juntos Crecemos" className="h-8 w-8 object-contain" />
       </div>
     </header>
   );
