@@ -1047,7 +1047,20 @@ export async function registerRoutes(
       const fee_amount = cover_fees ? Math.round(amount * PROCESSING_FEE_PERCENT / 100) : 0;
       const total_amount = amount + fee_amount;
 
-      const short_id = nanoidShort();
+      // Generate unique short_id with collision check
+      let short_id = nanoidShort();
+      let attempts = 0;
+      while (attempts < 5) {
+        const { count } = await supabase
+          .from('donation_intents')
+          .select('*', { count: 'exact', head: true })
+          .eq('short_id', short_id);
+        
+        if (!count || count === 0) break;
+        short_id = nanoidShort();
+        attempts++;
+      }
+
       const { data: intent, error: insertError } = await supabase
         .from('donation_intents')
         .insert({
