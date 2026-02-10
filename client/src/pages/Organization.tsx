@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Building2, Globe, Mail, Phone, MapPin, Save, CheckCircle } from 'lucide-react';
+import { Building2, Globe, Mail, Phone, MapPin, Save, CheckCircle, Upload, ImageIcon } from 'lucide-react';
 import { PageHeader } from '@/components/common/PageHeader';
 import { LoadingPage, LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
 import { organizationsApi } from '@/lib/api';
@@ -19,6 +20,9 @@ import { queryClient } from '@/lib/queryClient';
 export default function OrganizationPage() {
   const { toast } = useToast();
   const [isEditing, setIsEditing] = useState(false);
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const logoInputRef = useRef<HTMLInputElement>(null);
 
   const { data: orgResponse, isLoading } = useQuery<{ data: Organization }>({
     queryKey: ['/api/organizations/me'],
@@ -40,9 +44,27 @@ export default function OrganizationPage() {
     },
   });
 
+  const handleLogoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        toast({
+          variant: 'destructive',
+          title: 'Archivo muy grande',
+          description: 'El logo debe ser menor a 5MB',
+        });
+        return;
+      }
+      setLogoFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => setLogoPreview(reader.result as string);
+      reader.readAsDataURL(file);
+    }
+  };
+
   const updateMutation = useMutation({
     mutationFn: (data: Partial<InsertOrganization>) => 
-      organizationsApi.update(organization?.id || '', data),
+      organizationsApi.updateWithLogo(organization?.id || '', data, logoFile || undefined),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/organizations/me'] });
       toast({
@@ -50,6 +72,8 @@ export default function OrganizationPage() {
         description: 'Los cambios se guardaron correctamente',
       });
       setIsEditing(false);
+      setLogoFile(null);
+      setLogoPreview(null);
     },
     onError: () => {
       toast({
@@ -106,12 +130,49 @@ export default function OrganizationPage() {
         <div className="lg:col-span-2">
           <Card>
             <CardHeader>
-              <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center justify-between gap-4 flex-wrap">
                 <div className="flex items-center gap-4">
-                  <div className="w-16 h-16 rounded-xl bg-primary flex items-center justify-center">
-                    <span className="text-primary-foreground font-bold text-2xl">
-                      {organization.name.substring(0, 2).toUpperCase()}
-                    </span>
+                  <div className="relative group">
+                    {isEditing ? (
+                      <div 
+                        className="w-16 h-16 rounded-xl border-2 border-dashed border-muted-foreground/30 flex items-center justify-center cursor-pointer overflow-hidden"
+                        onClick={() => logoInputRef.current?.click()}
+                        data-testid="button-upload-logo"
+                      >
+                        {logoPreview || organization.logo_url ? (
+                          <img 
+                            src={logoPreview || organization.logo_url || ''} 
+                            alt="Logo" 
+                            className="w-full h-full object-cover rounded-xl"
+                          />
+                        ) : (
+                          <div className="flex flex-col items-center gap-1">
+                            <Upload className="w-5 h-5 text-muted-foreground" />
+                            <span className="text-[10px] text-muted-foreground">Logo</span>
+                          </div>
+                        )}
+                        <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-xl">
+                          <Upload className="w-5 h-5 text-white" />
+                        </div>
+                        <input
+                          ref={logoInputRef}
+                          type="file"
+                          accept="image/*"
+                          onChange={handleLogoSelect}
+                          className="hidden"
+                          data-testid="input-logo-file"
+                        />
+                      </div>
+                    ) : (
+                      <Avatar className="w-16 h-16 rounded-xl">
+                        {organization.logo_url ? (
+                          <AvatarImage src={organization.logo_url} alt={organization.name} className="object-cover" />
+                        ) : null}
+                        <AvatarFallback className="rounded-xl bg-primary text-primary-foreground font-bold text-2xl">
+                          {organization.name.substring(0, 2).toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                    )}
                   </div>
                   <div>
                     <CardTitle>{organization.name}</CardTitle>
@@ -119,6 +180,11 @@ export default function OrganizationPage() {
                       <MapPin className="w-3 h-3" />
                       {organization.city}, {organization.country}
                     </CardDescription>
+                    {isEditing && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Haz clic en el logo para cambiarlo
+                      </p>
+                    )}
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -268,7 +334,7 @@ export default function OrganizationPage() {
                     />
 
                     <div className="flex gap-2 justify-end">
-                      <Button type="button" variant="outline" onClick={() => setIsEditing(false)}>
+                      <Button type="button" variant="outline" onClick={() => { setIsEditing(false); setLogoFile(null); setLogoPreview(null); }}>
                         Cancelar
                       </Button>
                       <Button type="submit" disabled={updateMutation.isPending} data-testid="button-save-org">

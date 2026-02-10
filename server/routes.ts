@@ -14,7 +14,7 @@ const nanoidShort = customAlphabet('0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ', 6);
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: {
-    fileSize: 2 * 1024 * 1024, // 2MB limit
+    fileSize: 5 * 1024 * 1024, // 5MB limit
   },
   fileFilter: (req: Request, file: Express.Multer.File, cb: FileFilterCallback) => {
     const allowedTypes = ['image/png', 'image/jpeg', 'image/webp'];
@@ -449,7 +449,17 @@ export async function registerRoutes(
     }
   });
 
-  app.patch('/api/organizations/:id', authMiddleware, async (req: AuthenticatedRequest, res) => {
+  app.patch('/api/organizations/:id', authMiddleware, (req, res, next) => {
+    upload.single('logo')(req, res, (err) => {
+      if (err) {
+        if (err instanceof multer.MulterError && err.code === 'LIMIT_FILE_SIZE') {
+          return res.status(400).json({ error: 'El archivo es demasiado grande. Máximo 5MB.' });
+        }
+        return res.status(400).json({ error: err.message || 'Error al subir el archivo' });
+      }
+      next();
+    });
+  }, async (req: AuthenticatedRequest & { file?: Express.Multer.File }, res) => {
     try {
       const { id } = req.params;
 
@@ -458,20 +468,53 @@ export async function registerRoutes(
       }
 
       const { name, email, phone, website, description, country, city, slug } = req.body;
+      const logoFile = req.file;
+
+      let logoUrl: string | undefined;
+      if (logoFile) {
+        try {
+          const fileExt = logoFile.originalname.split('.').pop() || 'png';
+          const filePath = `${id}/logo.${fileExt}`;
+
+          const { error: uploadError } = await supabase.storage
+            .from('org-logos')
+            .upload(filePath, logoFile.buffer, {
+              contentType: logoFile.mimetype,
+              upsert: true,
+            });
+
+          if (!uploadError) {
+            const { data: urlData } = supabase.storage
+              .from('org-logos')
+              .getPublicUrl(filePath);
+            logoUrl = urlData.publicUrl;
+          } else {
+            console.error('Logo upload error:', uploadError);
+          }
+        } catch (logoError) {
+          console.error('Logo processing error:', logoError);
+        }
+      }
+
+      const updateData: Record<string, any> = {
+        name,
+        email,
+        phone,
+        website,
+        description,
+        country,
+        city,
+        slug,
+        updated_at: new Date().toISOString(),
+      };
+
+      if (logoUrl) {
+        updateData.logo_url = logoUrl;
+      }
 
       const { data, error } = await supabase
         .from('organizations')
-        .update({
-          name,
-          email,
-          phone,
-          website,
-          description,
-          country,
-          city,
-          slug,
-          updated_at: new Date().toISOString(),
-        })
+        .update(updateData)
         .eq('id', id)
         .select()
         .single();

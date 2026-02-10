@@ -61,6 +61,29 @@ export const organizationsApi = {
       method: 'PATCH',
       body: JSON.stringify(data),
     }),
+
+  updateWithLogo: async (id: string, data: Partial<InsertOrganization>, logoFile?: File) => {
+    const formData = new FormData();
+    Object.entries(data).forEach(([key, value]) => {
+      if (value !== undefined && value !== null) {
+        formData.append(key, String(value));
+      }
+    });
+    if (logoFile) {
+      formData.append('logo', logoFile);
+    }
+    const token = await getAccessToken();
+    const res = await fetch(`/api/organizations/${id}`, {
+      method: 'PATCH',
+      headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+      body: formData,
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: 'Error de conexión' }));
+      throw new Error(err.error || 'Error al actualizar');
+    }
+    return res.json();
+  },
   
   create: (data: InsertOrganization) =>
     apiRequest<Organization>('/organizations', {
