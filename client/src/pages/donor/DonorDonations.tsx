@@ -98,8 +98,13 @@ export default function DonorDonations() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between gap-2">
                         <div>
-                          <h3 className="font-semibold text-sm">
+                          <h3 className="font-semibold text-sm flex items-center gap-2">
                             {donation.organization_name || 'Organización'}
+                            {donation.short_id && (
+                              <span className="font-mono text-[10px] text-muted-foreground uppercase bg-muted px-1.5 py-0.5 rounded">
+                                #{donation.short_id}
+                              </span>
+                            )}
                           </h3>
                           <p className="text-xs text-muted-foreground">
                             {donation.campaign_title || 'Donación general'}
