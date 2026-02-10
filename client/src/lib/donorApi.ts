@@ -82,13 +82,15 @@ export const donorApi = {
       body: JSON.stringify({ organization_id: organizationId }),
     }),
   
-  removeFavorite: (organizationId: string) =>
-    fetch(`${API_BASE}/donor/favorites/${organizationId}`, {
+  removeFavorite: async (organizationId: string) => {
+    const token = await getAccessToken();
+    return fetch(`${API_BASE}/donor/favorites/${organizationId}`, {
       method: 'DELETE',
       headers: {
-        'Authorization': `Bearer ${localStorage.getItem('supabase_token') || ''}`,
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
       },
-    }),
+    });
+  },
   
   checkFavorite: (organizationId: string) =>
     apiRequest<{ isFavorited: boolean }>(`/donor/favorites/check/${organizationId}`),

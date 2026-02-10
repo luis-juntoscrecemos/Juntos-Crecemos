@@ -1474,6 +1474,37 @@ export async function registerRoutes(
     }
   });
 
+  // Search active organizations (public)
+  app.get('/api/public/organizations', async (req, res) => {
+    try {
+      const { q } = req.query;
+      const searchQuery = typeof q === 'string' ? q.trim() : '';
+
+      let query = supabase
+        .from('organizations')
+        .select('id, name, slug, logo_url, description, city, country, verified')
+        .eq('status', 'active')
+        .order('name', { ascending: true })
+        .limit(20);
+
+      if (searchQuery) {
+        query = query.ilike('name', `%${searchQuery}%`);
+      }
+
+      const { data: orgs, error } = await query;
+
+      if (error) {
+        console.error('Search organizations error:', error);
+        return res.status(500).json({ error: 'Error al buscar organizaciones' });
+      }
+
+      res.json({ data: orgs || [] });
+    } catch (error) {
+      console.error('Search organizations error:', error);
+      res.status(500).json({ error: 'Error al buscar organizaciones' });
+    }
+  });
+
   // Get public organization profile (for donors)
   app.get('/api/public/organizations/:slug', async (req, res) => {
     try {
