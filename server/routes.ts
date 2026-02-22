@@ -164,7 +164,7 @@ export async function registerRoutes(
 
       // Step E: Create default campaign (non-critical)
       try {
-        const campaignSlug = `donacion-general-${slug}`;
+        const campaignSlug = 'donacion-general';
         const { error: campaignError } = await supabase
           .from('campaigns')
           .insert({

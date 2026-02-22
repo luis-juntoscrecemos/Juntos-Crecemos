@@ -180,6 +180,6 @@ Run `docs/causes-migration.sql` in Supabase Dashboard to add:
 
 ### Registration Behavior
 - New org registration automatically creates a default "Donación general" campaign
-- Campaign slug format: donacion-general-{org-slug}
+- Campaign slug format: donacion-general
 - Website field accepts any text (no https:// required)
 - Org page auto-prepends https:// for display links when missing
