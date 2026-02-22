@@ -68,6 +68,27 @@ export default function OrganizationPage() {
 
   const defaultCampaign = campaignsResponse?.data?.[0];
 
+  // Auto-fix legacy long slugs for the default campaign
+  useEffect(() => {
+    if (defaultCampaign && defaultCampaign.slug.startsWith('donacion-general-') && organization) {
+      const updateCampaign = async () => {
+        try {
+          await fetch(`/api/campaigns/${defaultCampaign.id}`, {
+            method: 'PATCH',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ slug: 'donacion-general' })
+          });
+          queryClient.invalidateQueries({ queryKey: ['/api/campaigns'] });
+        } catch (err) {
+          console.error('Failed to auto-fix campaign slug', err);
+        }
+      };
+      updateCampaign();
+    }
+  }, [defaultCampaign, organization]);
+
   const form = useForm<InsertOrganization>({
     resolver: zodResolver(insertOrganizationSchema),
     defaultValues: {
