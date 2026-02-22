@@ -1,8 +1,8 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Building2, Globe, Mail, Phone, MapPin, Save, CheckCircle, Upload, ImageIcon } from 'lucide-react';
+import { Building2, Globe, Mail, Phone, MapPin, Save, CheckCircle, Upload, ImageIcon, Heart, X, ChevronDown } from 'lucide-react';
 import { PageHeader } from '@/components/common/PageHeader';
 import { LoadingPage, LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -14,21 +14,59 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
 import { organizationsApi } from '@/lib/api';
-import { insertOrganizationSchema, type InsertOrganization, type Organization } from '@shared/schema';
+import { insertOrganizationSchema, type InsertOrganization, type Organization, type CampaignWithTotals } from '@shared/schema';
 import { queryClient } from '@/lib/queryClient';
+import { Link } from 'wouter';
+
+const AVAILABLE_CAUSES = [
+  'Educación',
+  'Salud',
+  'Medio ambiente',
+  'Derechos humanos',
+  'Infancia',
+  'Alimentación',
+  'Vivienda',
+  'Agua y saneamiento',
+  'Igualdad de género',
+  'Desarrollo comunitario',
+  'Arte y cultura',
+  'Emergencias y desastres',
+  'Adultos mayores',
+  'Discapacidad',
+  'Animales',
+];
 
 export default function OrganizationPage() {
   const { toast } = useToast();
   const [isEditing, setIsEditing] = useState(false);
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const [showCausesDropdown, setShowCausesDropdown] = useState(false);
   const logoInputRef = useRef<HTMLInputElement>(null);
+  const causesDropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (causesDropdownRef.current && !causesDropdownRef.current.contains(e.target as Node)) {
+        setShowCausesDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const { data: orgResponse, isLoading } = useQuery<{ data: Organization }>({
     queryKey: ['/api/organizations/me'],
   });
 
   const organization = orgResponse?.data as Organization | undefined;
+
+  const { data: campaignsResponse } = useQuery<{ data: CampaignWithTotals[] }>({
+    queryKey: ['/api/campaigns'],
+    enabled: !!organization,
+  });
+
+  const defaultCampaign = campaignsResponse?.data?.[0];
 
   const form = useForm<InsertOrganization>({
     resolver: zodResolver(insertOrganizationSchema),
@@ -41,6 +79,7 @@ export default function OrganizationPage() {
       country: organization?.country || '',
       city: organization?.city || '',
       slug: organization?.slug || '',
+      causes: organization?.causes || [],
     },
   });
 
@@ -196,7 +235,12 @@ export default function OrganizationPage() {
                   ) : (
                     <Badge variant="secondary">Pendiente</Badge>
                   )}
-                  <Badge variant="outline">{organization.status}</Badge>
+                  <Badge variant="outline">
+                    {organization.status === 'active' ? 'Activa' : 
+                     organization.status === 'inactive' ? 'Inactiva' : 
+                     organization.status === 'suspended' ? 'Suspendida' : 
+                     organization.status}
+                  </Badge>
                 </div>
               </div>
             </CardHeader>
@@ -321,8 +365,7 @@ export default function OrganizationPage() {
                           <FormLabel>Sitio web</FormLabel>
                           <FormControl>
                             <Input 
-                              type="url" 
-                              placeholder="https://www.tuong.org" 
+                              placeholder="www.tuong.org" 
                               {...field} 
                               value={field.value || ''}
                               data-testid="input-org-website"
@@ -333,8 +376,87 @@ export default function OrganizationPage() {
                       )}
                     />
 
+                    <FormField
+                      control={form.control}
+                      name="causes"
+                      render={({ field }) => {
+                        const selectedCauses = field.value || [];
+                        const toggleCause = (cause: string) => {
+                          const current = field.value || [];
+                          if (current.includes(cause)) {
+                            field.onChange(current.filter((c: string) => c !== cause));
+                          } else {
+                            field.onChange([...current, cause]);
+                          }
+                        };
+                        return (
+                          <FormItem>
+                            <FormLabel>Causas</FormLabel>
+                            <div className="relative" ref={causesDropdownRef}>
+                              <div
+                                className="flex items-center justify-between min-h-[40px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm cursor-pointer"
+                                onClick={() => setShowCausesDropdown(!showCausesDropdown)}
+                                data-testid="select-causes"
+                              >
+                                <div className="flex flex-wrap gap-1 flex-1">
+                                  {selectedCauses.length > 0 ? (
+                                    selectedCauses.map((cause: string) => (
+                                      <Badge
+                                        key={cause}
+                                        variant="secondary"
+                                        className="text-xs"
+                                      >
+                                        {cause}
+                                        <button
+                                          type="button"
+                                          className="ml-1 hover:text-destructive"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            toggleCause(cause);
+                                          }}
+                                          data-testid={`remove-cause-${cause}`}
+                                        >
+                                          <X className="w-3 h-3" />
+                                        </button>
+                                      </Badge>
+                                    ))
+                                  ) : (
+                                    <span className="text-muted-foreground">Selecciona las causas de tu organización</span>
+                                  )}
+                                </div>
+                                <ChevronDown className="w-4 h-4 text-muted-foreground ml-2 shrink-0" />
+                              </div>
+                              {showCausesDropdown && (
+                                <div className="absolute z-50 mt-1 w-full max-h-[200px] overflow-y-auto rounded-md border bg-background shadow-md">
+                                  {AVAILABLE_CAUSES.map((cause) => (
+                                    <div
+                                      key={cause}
+                                      className="flex items-center gap-2 px-3 py-2 hover:bg-muted cursor-pointer text-sm"
+                                      onClick={() => toggleCause(cause)}
+                                      data-testid={`cause-option-${cause}`}
+                                    >
+                                      <div className={`w-4 h-4 rounded border flex items-center justify-center ${selectedCauses.includes(cause) ? 'bg-primary border-primary' : 'border-input'}`}>
+                                        {selectedCauses.includes(cause) && (
+                                          <CheckCircle className="w-3 h-3 text-primary-foreground" />
+                                        )}
+                                      </div>
+                                      {cause}
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                            <FormDescription>
+                              Selecciona una o más causas asociadas a tu organización
+                            </FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        );
+                      }}
+                    />
+
                     <div className="flex gap-2 justify-end">
-                      <Button type="button" variant="outline" onClick={() => { setIsEditing(false); setLogoFile(null); setLogoPreview(null); }}>
+                      <Button type="button" variant="outline" onClick={() => { setIsEditing(false); setLogoFile(null); setLogoPreview(null); setShowCausesDropdown(false); }}>
                         Cancelar
                       </Button>
                       <Button type="submit" disabled={updateMutation.isPending} data-testid="button-save-org">
@@ -373,7 +495,7 @@ export default function OrganizationPage() {
                       <div className="flex items-center gap-3">
                         <Globe className="w-4 h-4 text-muted-foreground" />
                         <a 
-                          href={organization.website} 
+                          href={organization.website.startsWith('http') ? organization.website : `https://${organization.website}`} 
                           target="_blank" 
                           rel="noopener noreferrer"
                           className="text-sm text-primary hover:underline"
@@ -383,6 +505,21 @@ export default function OrganizationPage() {
                       </div>
                     )}
                   </div>
+                  {organization.causes && organization.causes.length > 0 && (
+                    <div className="pt-4 border-t">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Heart className="w-4 h-4 text-muted-foreground" />
+                        <span className="text-sm font-medium">Causas</span>
+                      </div>
+                      <div className="flex flex-wrap gap-1">
+                        {organization.causes.map((cause) => (
+                          <Badge key={cause} variant="secondary" className="text-xs" data-testid={`badge-cause-${cause}`}>
+                            {cause}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </CardContent>
@@ -395,14 +532,33 @@ export default function OrganizationPage() {
               <CardTitle className="text-base">Enlace público</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="p-3 bg-muted rounded-md">
-                <code className="text-sm break-all">
-                  /donar/{organization.slug}
-                </code>
-              </div>
-              <p className="text-xs text-muted-foreground mt-2">
-                Comparte este enlace para recibir donaciones
-              </p>
+              {defaultCampaign ? (
+                <>
+                  <a
+                    href={`/donar/${organization.slug}/${defaultCampaign.slug}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block p-3 bg-muted rounded-md hover:bg-muted/80 transition-colors"
+                    data-testid="link-public-donate"
+                  >
+                    <code className="text-sm break-all text-primary underline">
+                      {window.location.origin}/donar/{organization.slug}/{defaultCampaign.slug}
+                    </code>
+                  </a>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Comparte este enlace para recibir donaciones
+                  </p>
+                </>
+              ) : (
+                <div className="p-3 bg-muted rounded-md">
+                  <code className="text-sm break-all text-muted-foreground">
+                    /donar/{organization.slug}
+                  </code>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Crea una campaña para activar tu enlace de donaciones
+                  </p>
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -419,7 +575,12 @@ export default function OrganizationPage() {
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-sm text-muted-foreground">Estado</span>
-                <Badge variant="outline">{organization.status}</Badge>
+                <Badge variant="outline">
+                  {organization.status === 'active' ? 'Activa' : 
+                   organization.status === 'inactive' ? 'Inactiva' : 
+                   organization.status === 'suspended' ? 'Suspendida' : 
+                   organization.status}
+                </Badge>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-sm text-muted-foreground">Creada</span>

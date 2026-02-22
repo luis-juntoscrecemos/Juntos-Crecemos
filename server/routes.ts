@@ -79,14 +79,7 @@ export async function registerRoutes(
         return res.status(400).json({ error: 'La contraseña debe tener al menos 6 caracteres' });
       }
 
-      // Validate website URL format if provided
-      if (website && typeof website === 'string' && website.trim()) {
-        try {
-          new URL(website);
-        } catch {
-          return res.status(400).json({ error: 'URL del sitio web inválida' });
-        }
-      }
+      // Website is optional free-text, no URL validation needed
 
       // Step A: Create Supabase auth user
       const { data: authData, error: authError } = await supabase.auth.admin.createUser({
@@ -169,7 +162,28 @@ export async function registerRoutes(
         return res.status(400).json({ error: 'Error al configurar la cuenta. Intenta nuevamente.' });
       }
 
-      // Step E: Upload logo if provided (non-critical, don't rollback on failure)
+      // Step E: Create default campaign (non-critical)
+      try {
+        const campaignSlug = `donacion-general-${slug}`;
+        const { error: campaignError } = await supabase
+          .from('campaigns')
+          .insert({
+            org_id: org.id,
+            title: 'Donación general',
+            slug: campaignSlug,
+            description: `Apoya a ${orgName.trim()} con tu donación`,
+            currency: 'COP',
+            is_active: true,
+          });
+
+        if (campaignError) {
+          console.error('Default campaign creation error:', campaignError);
+        }
+      } catch (campaignErr) {
+        console.error('Default campaign creation error:', campaignErr);
+      }
+
+      // Step F: Upload logo if provided (non-critical, don't rollback on failure)
       let logoUrl = null;
       if (logoFile) {
         try {
@@ -467,7 +481,7 @@ export async function registerRoutes(
         return res.status(403).json({ error: 'No tienes permiso para editar esta organización' });
       }
 
-      const { name, email, phone, website, description, country, city, slug } = req.body;
+      const { name, email, phone, website, description, country, city, slug, causes } = req.body;
       const logoFile = req.file;
 
       let logoUrl: string | undefined;
@@ -507,6 +521,14 @@ export async function registerRoutes(
         slug,
         updated_at: new Date().toISOString(),
       };
+
+      if (causes !== undefined) {
+        try {
+          updateData.causes = typeof causes === 'string' ? JSON.parse(causes) : causes;
+        } catch {
+          updateData.causes = null;
+        }
+      }
 
       if (logoUrl) {
         updateData.logo_url = logoUrl;

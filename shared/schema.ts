@@ -18,6 +18,7 @@ export interface Organization {
   slug: string;
   verified: boolean;
   status: string;
+  causes: string[] | null;
   created_at: string;
   updated_at: string;
 }
@@ -26,12 +27,13 @@ export const insertOrganizationSchema = z.object({
   name: z.string().min(2, "El nombre debe tener al menos 2 caracteres"),
   email: z.string().email("Correo electrónico inválido"),
   phone: z.string().nullable().optional(),
-  website: z.string().url("URL inválida").nullable().optional(),
+  website: z.string().nullable().optional(),
   description: z.string().nullable().optional(),
   country: z.string().min(2, "País requerido"),
   city: z.string().min(2, "Ciudad requerida"),
   logo_url: z.string().url().nullable().optional(),
   slug: z.string().min(2, "Slug requerido"),
+  causes: z.array(z.string()).nullable().optional(),
 });
 
 export type InsertOrganization = z.infer<typeof insertOrganizationSchema>;

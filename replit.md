@@ -44,12 +44,13 @@ shared/
 docs/
 ├── supabase-setup.sql    # Initial Supabase setup (storage, orgs RLS)
 ├── donor-dashboard-setup.sql  # Donor tables, RLS policies, claim function
-└── recurring-migration.sql    # Add recurring donation columns to campaigns
+├── recurring-migration.sql    # Add recurring donation columns to campaigns
+└── causes-migration.sql       # Add causes column to organizations
 ```
 
 ## Database Schema (Supabase)
 Core tables:
-- **organizations**: NGO profiles (name, email, slug, country, city, verified, status)
+- **organizations**: NGO profiles (name, email, slug, country, city, verified, status, causes[])
 - **organization_users**: Links auth users to organizations (user_id, organization_id, role)
 - **campaigns**: Fundraising campaigns (title, slug, description, goal_amount, is_active, suggested_amounts, image_url, allow_recurring, recurring_intervals, default_recurring_interval)
 - **campaigns_with_totals**: View with raised_minor and donations_count
@@ -172,3 +173,13 @@ Run `docs/short-id-migration.sql` in Supabase Dashboard to add:
 Run `docs/recurring-migration.sql` in Supabase Dashboard to add:
 - allow_recurring, recurring_intervals, default_recurring_interval columns to campaigns table
 - These columns are optional; the app gracefully degrades if they don't exist
+
+Run `docs/causes-migration.sql` in Supabase Dashboard to add:
+- causes text[] column to organizations table
+- Optional; the app gracefully degrades if it doesn't exist
+
+### Registration Behavior
+- New org registration automatically creates a default "Donación general" campaign
+- Campaign slug format: donacion-general-{org-slug}
+- Website field accepts any text (no https:// required)
+- Org page auto-prepends https:// for display links when missing

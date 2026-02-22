@@ -65,8 +65,12 @@ export const organizationsApi = {
   updateWithLogo: async (id: string, data: Partial<InsertOrganization>, logoFile?: File) => {
     const formData = new FormData();
     Object.entries(data).forEach(([key, value]) => {
-      if (value !== undefined && value !== null) {
-        formData.append(key, String(value));
+      if (value !== undefined) {
+        if (Array.isArray(value)) {
+          formData.append(key, JSON.stringify(value));
+        } else if (value !== null) {
+          formData.append(key, String(value));
+        }
       }
     });
     if (logoFile) {

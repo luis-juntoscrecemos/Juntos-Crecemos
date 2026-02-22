@@ -18,7 +18,7 @@ const ACCEPTED_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
 
 const registerSchema = z.object({
   orgName: z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
-  website: z.string().url('URL inválida').optional().or(z.literal('')),
+  website: z.string().optional().or(z.literal('')),
   email: z.string().email('Correo electrónico inválido'),
   password: z.string().min(6, 'La contraseña debe tener al menos 6 caracteres'),
   confirmPassword: z.string(),
@@ -181,8 +181,7 @@ export default function Register() {
                         <div className="relative">
                           <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                           <Input
-                            type="url"
-                            placeholder="https://www.tuong.org"
+                            placeholder="www.tuong.org"
                             className="pl-10"
                             data-testid="input-website"
                             {...field}
