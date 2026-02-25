@@ -646,7 +646,17 @@ export async function registerRoutes(
     }
   });
 
-  app.post('/api/campaigns', authMiddleware, upload.single('image'), async (req: AuthenticatedRequest & { file?: Express.Multer.File }, res) => {
+  app.post('/api/campaigns', authMiddleware, (req, res, next) => {
+    upload.single('image')(req, res, (err) => {
+      if (err) {
+        if (err instanceof multer.MulterError && err.code === 'LIMIT_FILE_SIZE') {
+          return res.status(400).json({ error: 'La imagen es demasiado grande. Máximo 5MB.' });
+        }
+        return res.status(400).json({ error: err.message || 'Error al subir la imagen' });
+      }
+      next();
+    });
+  }, async (req: AuthenticatedRequest & { file?: Express.Multer.File }, res) => {
     try {
       if (!req.organizationId) {
         return res.status(400).json({ error: 'Debes tener una organización para crear campañas' });
@@ -731,7 +741,17 @@ export async function registerRoutes(
     }
   });
 
-  app.patch('/api/campaigns/:id', authMiddleware, upload.single('image'), async (req: AuthenticatedRequest & { file?: Express.Multer.File }, res) => {
+  app.patch('/api/campaigns/:id', authMiddleware, (req, res, next) => {
+    upload.single('image')(req, res, (err) => {
+      if (err) {
+        if (err instanceof multer.MulterError && err.code === 'LIMIT_FILE_SIZE') {
+          return res.status(400).json({ error: 'La imagen es demasiado grande. Máximo 5MB.' });
+        }
+        return res.status(400).json({ error: err.message || 'Error al subir la imagen' });
+      }
+      next();
+    });
+  }, async (req: AuthenticatedRequest & { file?: Express.Multer.File }, res) => {
     try {
       const { id } = req.params;
       const body = req.body;

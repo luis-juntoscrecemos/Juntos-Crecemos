@@ -88,7 +88,11 @@ function CampaignForm({ campaign, onSuccess, onCancel }: CampaignFormProps) {
         headers: { 'Authorization': `Bearer ${token || ''}` },
         body: formData,
       });
-      return res.json();
+      const json = await res.json();
+      if (!res.ok) {
+        throw new Error(json.error || json.message || 'Error al crear la campaña');
+      }
+      return json;
     },
     onSuccess: (res) => {
       if (res.error) {
@@ -99,8 +103,8 @@ function CampaignForm({ campaign, onSuccess, onCancel }: CampaignFormProps) {
       toast({ title: 'Campaña creada', description: 'La campaña se creó correctamente' });
       onSuccess();
     },
-    onError: () => {
-      toast({ variant: 'destructive', title: 'Error', description: 'No se pudo crear la campaña' });
+    onError: (err: Error) => {
+      toast({ variant: 'destructive', title: 'Error', description: err.message || 'No se pudo crear la campaña' });
     },
   });
 
@@ -112,7 +116,11 @@ function CampaignForm({ campaign, onSuccess, onCancel }: CampaignFormProps) {
         headers: { 'Authorization': `Bearer ${token || ''}` },
         body: formData,
       });
-      return res.json();
+      const json = await res.json();
+      if (!res.ok) {
+        throw new Error(json.error || json.message || 'Error al actualizar la campaña');
+      }
+      return json;
     },
     onSuccess: (res) => {
       if (res.error) {
@@ -123,8 +131,8 @@ function CampaignForm({ campaign, onSuccess, onCancel }: CampaignFormProps) {
       toast({ title: 'Campaña actualizada', description: 'Los cambios se guardaron correctamente' });
       onSuccess();
     },
-    onError: () => {
-      toast({ variant: 'destructive', title: 'Error', description: 'No se pudieron guardar los cambios' });
+    onError: (err: Error) => {
+      toast({ variant: 'destructive', title: 'Error', description: err.message || 'No se pudieron guardar los cambios' });
     },
   });
 
@@ -133,6 +141,11 @@ function CampaignForm({ campaign, onSuccess, onCancel }: CampaignFormProps) {
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      const maxSize = 5 * 1024 * 1024;
+      if (file.size > maxSize) {
+        toast({ variant: 'destructive', title: 'Error', description: 'La imagen es demasiado grande. Máximo 5MB.' });
+        return;
+      }
       setImageFile(file);
       setImageRemoved(false);
       const reader = new FileReader();
