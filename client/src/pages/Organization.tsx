@@ -5,10 +5,11 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { Building2, Globe, Mail, Phone, MapPin, Save, CheckCircle, Upload, ImageIcon, Heart, X, ChevronDown } from 'lucide-react';
 import { PageHeader } from '@/components/common/PageHeader';
 import { LoadingPage, LoadingSpinner } from '@/components/common/LoadingSpinner';
+import { RichTextEditor } from '@/components/common/RichTextEditor';
+import { RichTextDisplay } from '@/components/common/RichTextDisplay';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -308,11 +309,11 @@ export default function OrganizationPage() {
                         <FormItem>
                           <FormLabel>Descripción</FormLabel>
                           <FormControl>
-                            <Textarea 
-                              {...field} 
-                              value={field.value || ''} 
-                              className="min-h-[100px]"
-                              data-testid="input-org-description"
+                            <RichTextEditor
+                              value={field.value || ''}
+                              onChange={field.onChange}
+                              placeholder="Describe tu organización..."
+                              className="min-h-[120px]"
                             />
                           </FormControl>
                           <FormMessage />
@@ -499,7 +500,11 @@ export default function OrganizationPage() {
               ) : (
                 <div className="space-y-4">
                   {organization.description && (
-                    <p className="text-muted-foreground">{organization.description}</p>
+                    <RichTextDisplay
+                      html={organization.description}
+                      className="text-muted-foreground"
+                      testId="text-org-description"
+                    />
                   )}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t">
                     <div className="flex items-center gap-3">

@@ -17,6 +17,7 @@ import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { LoadingPage, LoadingSpinner } from '@/components/common/LoadingSpinner';
+import { RichTextDisplay } from '@/components/common/RichTextDisplay';
 import { publicApi } from '@/lib/api';
 import { insertDonationIntentSchema } from '@shared/schema';
 import type { CampaignWithTotals, Organization } from '@shared/schema';
@@ -727,7 +728,11 @@ export default function DonatePage() {
               </CardHeader>
               {organization.description && (
                 <CardContent>
-                  <p className="text-sm text-muted-foreground">{organization.description}</p>
+                  <RichTextDisplay
+                    html={organization.description}
+                    className="text-sm text-muted-foreground"
+                    testId="text-org-description"
+                  />
                 </CardContent>
               )}
             </Card>

@@ -102,7 +102,7 @@ export default function DonorFavorites() {
                       <div className="flex-1 min-w-0">
                         <h3 className="font-semibold text-sm truncate">{org.name}</h3>
                         <p className="text-xs text-muted-foreground line-clamp-2 mt-1">
-                          {org.description || 'Sin descripción'}
+                          {org.description ? org.description.replace(/<[^>]*>/g, '') : 'Sin descripción'}
                         </p>
                       </div>
                     </div>

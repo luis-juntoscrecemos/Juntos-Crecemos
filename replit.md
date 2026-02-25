@@ -24,7 +24,7 @@ Juntos Crecemos is a SaaS platform for South American NGOs to accept and manage 
 client/
 ├── src/
 │   ├── components/       # Reusable UI components
-│   │   ├── common/       # EmptyState, PageHeader, StatsCard, LoadingSpinner
+│   │   ├── common/       # EmptyState, PageHeader, StatsCard, LoadingSpinner, RichTextEditor, RichTextDisplay
 │   │   ├── layout/       # AppShell (org), DonorShell (donor) with sidebars
 │   │   └── ui/           # shadcn/ui base components
 │   ├── contexts/         # AuthContext for Supabase auth state

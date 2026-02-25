@@ -6,6 +6,21 @@ import { insertDonationIntentSchema } from "@shared/schema";
 import multer, { FileFilterCallback } from "multer";
 import { customAlphabet } from "nanoid";
 import { sendDonationReceipt } from "./email";
+import sanitizeHtml from "sanitize-html";
+
+const sanitizeDescription = (html: string): string => {
+  return sanitizeHtml(html, {
+    allowedTags: ['p', 'br', 'strong', 'b', 'em', 'i', 'u', 'ul', 'ol', 'li', 'blockquote'],
+    allowedAttributes: {
+      'p': ['style'],
+      'li': ['style'],
+    },
+    allowedStyles: {
+      'p': { 'text-align': [/^left$/, /^center$/, /^right$/] },
+      'li': { 'text-align': [/^left$/, /^center$/, /^right$/] },
+    },
+  });
+};
 
 const PROCESSING_FEE_PERCENT = 4.5;
 const nanoidShort = customAlphabet('0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ', 6);
@@ -515,7 +530,7 @@ export async function registerRoutes(
         email,
         phone,
         website,
-        description,
+        description: description ? sanitizeDescription(description) : description,
         country,
         city,
         slug,
