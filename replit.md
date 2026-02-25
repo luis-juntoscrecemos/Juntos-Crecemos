@@ -63,12 +63,13 @@ Core tables:
 - `SUPABASE_ANON_KEY`: Public anon key (used by frontend for auth)
 - `SUPABASE_SERVICE_ROLE_KEY`: Service role key (backend only, never exposed)
 - `RESEND_API_KEY`: Resend email service API key (for sending donation receipts)
-- `RESEND_FROM_EMAIL`: (Optional) Custom from address for emails, e.g. `Juntos Crecemos <donaciones@juntoscrecemos.co>`. Requires verified domain on Resend. Falls back to `onboarding@resend.dev` which only sends to the Resend account owner's email.
+- `EMAIL_FROM`: (Optional) Sender address for emails. Default: `Juntos Crecemos <gracias@mail.juntoscrecemos.co>`
+- `EMAIL_REPLY_TO`: (Optional) Reply-to address for emails. Default: `hola@juntoscrecemos.co`
 
 Note: Frontend receives Supabase config via `/api/config` endpoint to avoid needing VITE_ prefixed env vars.
 
 ### Resend Email Setup
-The Resend account is linked to `luis@juntoscrecemos.co`. To send donation receipt emails to ANY donor (not just the account owner), the domain `juntoscrecemos.co` must be verified at https://resend.com/domains. Once verified, set `RESEND_FROM_EMAIL` to something like `Juntos Crecemos <donaciones@juntoscrecemos.co>`.
+The verified sending domain in Resend is `mail.juntoscrecemos.co`. Donation receipt emails are sent from `gracias@mail.juntoscrecemos.co` with reply-to `hola@juntoscrecemos.co` (Google Workspace inbox). These defaults are hardcoded and can be overridden via `EMAIL_FROM` and `EMAIL_REPLY_TO` env vars.
 
 ## API Endpoints
 

@@ -156,10 +156,12 @@ export async function sendDonationReceipt(data: DonationReceiptData): Promise<{ 
 </body>
 </html>`;
 
-    const fromAddress = process.env.RESEND_FROM_EMAIL || 'Juntos Crecemos <onboarding@resend.dev>';
+    const fromAddress = process.env.EMAIL_FROM || 'Juntos Crecemos <gracias@mail.juntoscrecemos.co>';
+    const replyToAddress = process.env.EMAIL_REPLY_TO || 'hola@juntoscrecemos.co';
 
     const { error } = await resend.emails.send({
       from: fromAddress,
+      replyTo: replyToAddress,
       to: data.donorEmail,
       subject: `Recibo de donación #${safeShortId} - ${safeOrgName}`,
       html: htmlContent,
