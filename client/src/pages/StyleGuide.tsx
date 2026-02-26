@@ -1,7 +1,8 @@
 import { 
   Check, X, AlertCircle, Info, Heart, Megaphone, Building2, 
-  Download, Plus, Search, Settings, Trash2, Edit, Eye, Sun, Moon, Palette
+  Download, Plus, Search, Settings, Trash2, Edit, Eye, Sun, Moon, Palette, ArrowRight
 } from 'lucide-react';
+import { Link } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
@@ -219,7 +220,7 @@ export default function StyleGuide() {
     <div className="space-y-12">
       <PageHeader 
         title="Guía de Estilos" 
-        description="Tokens de diseño, componentes y patrones para Juntos Crecemos"
+        description="Referencia visual de tokens de diseño, componentes y paletas de Juntos Crecemos"
       />
 
       <Tabs defaultValue="colors" className="w-full">
@@ -278,9 +279,16 @@ export default function StyleGuide() {
                 )}
               </Badge>
             </div>
-            <p className="text-muted-foreground mb-6">
-              Cuatro paletas curadas para personalizar la apariencia del panel de administraci&oacute;n. Cada paleta se muestra en modo claro y oscuro.
+            <p className="text-muted-foreground mb-4">
+              Referencia visual de las cuatro paletas disponibles. Cada paleta se muestra en modo claro y oscuro.
             </p>
+            <Link href="/settings" data-testid="link-go-to-settings">
+              <Button variant="outline" size="sm" className="mb-6 gap-2">
+                <Settings className="w-4 h-4" />
+                Cambiar paleta en Ajustes
+                <ArrowRight className="w-4 h-4" />
+              </Button>
+            </Link>
 
             <div className="space-y-8">
               {palettes.map((palette) => (
