@@ -19,6 +19,7 @@ export interface Organization {
   verified: boolean;
   status: string;
   causes: string[] | null;
+  accent_theme: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -34,6 +35,7 @@ export const insertOrganizationSchema = z.object({
   logo_url: z.string().url().nullable().optional(),
   slug: z.string().min(2, "Slug requerido"),
   causes: z.array(z.string()).nullable().optional(),
+  accent_theme: z.enum(['classic', 'ocean', 'andes', 'warm']).nullable().optional(),
 });
 
 export type InsertOrganization = z.infer<typeof insertOrganizationSchema>;

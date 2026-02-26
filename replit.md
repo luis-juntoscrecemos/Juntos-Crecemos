@@ -24,10 +24,10 @@ Juntos Crecemos is a SaaS platform for South American NGOs to accept and manage 
 client/
 ├── src/
 │   ├── components/       # Reusable UI components
-│   │   ├── common/       # EmptyState, PageHeader, StatsCard, LoadingSpinner, RichTextEditor, RichTextDisplay
+│   │   ├── common/       # EmptyState, PageHeader, StatsCard, LoadingSpinner, RichTextEditor, RichTextDisplay, ThemeModeToggle
 │   │   ├── layout/       # AppShell (org), DonorShell (donor) with sidebars
 │   │   └── ui/           # shadcn/ui base components
-│   ├── contexts/         # AuthContext for Supabase auth state
+│   ├── contexts/         # AuthContext for Supabase auth, ThemeContext for dark mode + accent palettes
 │   ├── hooks/            # Custom React hooks
 │   ├── lib/              # API client, donorApi, Supabase client, utilities
 │   └── pages/            # Route pages
@@ -45,12 +45,13 @@ docs/
 ├── supabase-setup.sql    # Initial Supabase setup (storage, orgs RLS)
 ├── donor-dashboard-setup.sql  # Donor tables, RLS policies, claim function
 ├── recurring-migration.sql    # Add recurring donation columns to campaigns
-└── causes-migration.sql       # Add causes column to organizations
+├── causes-migration.sql       # Add causes column to organizations
+└── accent-theme-migration.sql # Add accent_theme column to organizations
 ```
 
 ## Database Schema (Supabase)
 Core tables:
-- **organizations**: NGO profiles (name, email, slug, country, city, verified, status, causes[])
+- **organizations**: NGO profiles (name, email, slug, country, city, verified, status, causes[], accent_theme)
 - **organization_users**: Links auth users to organizations (user_id, organization_id, role)
 - **campaigns**: Fundraising campaigns (title, slug, description, goal_amount, is_active, suggested_amounts, image_url, allow_recurring, recurring_intervals, default_recurring_interval)
 - **campaigns_with_totals**: View with raised_minor and donations_count
@@ -179,6 +180,10 @@ Run `docs/recurring-migration.sql` in Supabase Dashboard to add:
 Run `docs/causes-migration.sql` in Supabase Dashboard to add:
 - causes text[] column to organizations table
 - Optional; the app gracefully degrades if it doesn't exist
+
+Run `docs/accent-theme-migration.sql` in Supabase Dashboard to add:
+- accent_theme column to organizations table
+- Optional; defaults to 'classic' if it doesn't exist
 
 ### Registration Behavior
 - New org registration automatically creates a default "Donación general" campaign

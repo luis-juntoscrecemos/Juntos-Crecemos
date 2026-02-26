@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { Link, useLocation } from 'wouter';
 import { useQuery } from '@tanstack/react-query';
 import { 
@@ -24,7 +25,9 @@ import {
   SidebarTrigger,
 } from '@/components/ui/sidebar';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTheme } from '@/contexts/ThemeContext';
 import { Separator } from '@/components/ui/separator';
+import { ThemeModeToggle } from '@/components/common/ThemeModeToggle';
 import juntosLogo from '@/assets/juntos-crecemos-logo.png';
 import darkLogo from '@assets/Juntos_Crecemos_Transparent_1772133029306.png';
 import type { DonorAccount } from '@shared/schema';
@@ -119,9 +122,10 @@ function TopBar({ profile }: { profile?: DonorAccount | null }) {
         <SidebarTrigger data-testid="button-sidebar-toggle" />
       </div>
       <div className="flex items-center gap-3">
-        <span className="text-sm text-muted-foreground" data-testid="text-donor-welcome">
+        <span className="text-sm text-muted-foreground hidden sm:inline" data-testid="text-donor-welcome">
           Bienvenido, {displayName}!
         </span>
+        <ThemeModeToggle />
         <img src={darkLogo} alt="Juntos Crecemos" className="h-8 object-contain" data-testid="img-topbar-logo" />
       </div>
     </header>
@@ -133,11 +137,16 @@ interface DonorShellProps {
 }
 
 export function DonorShell({ children }: DonorShellProps) {
+  const { setAccent } = useTheme();
   const { data: profileResponse } = useQuery<{ data?: DonorAccount }>({
     queryKey: ['/api/donor/profile'],
   });
   
   const profile = profileResponse?.data;
+
+  useEffect(() => {
+    setAccent('classic');
+  }, [setAccent]);
 
   const sidebarStyle = {
     "--sidebar-width": "16rem",

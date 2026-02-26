@@ -1,0 +1,110 @@
+Implement Dark Mode + curated theme palettes for Juntos Crecemos (Next.js App Router + Tailwind + shadcn/ui).
+
+Context:
+- Next.js (TypeScript, App Router)
+- Tailwind CSS
+- shadcn/ui components (token-based theming via CSS variables)
+- I want org admins + donors to be able to change color schemes:
+  - Everyone: Light / Dark / System mode
+  - Org admins (dashboard only): choose one of 4 curated accent palettes
+- There is a “Guía de Estilos” page that should become the theme/style guide.
+
+Non-negotiable technical requirements:
+1) Use shadcn/ui theming via CSS variables (design tokens). Do not hardcode colors across components. :contentReference[oaicite:1]{index=1}
+2) Implement Dark Mode using next-themes for Next.js App Router:
+   - ThemeProvider in the root layout
+   - Toggle that switches light/dark/system
+   - Uses `class="dark"` on <html>
+   - Use `disableTransitionOnChange` to prevent ugly theme-transition flashes. :contentReference[oaicite:2]{index=2}
+3) Do NOT add additional UI libraries beyond shadcn/ui + Tailwind.
+4) Keep neutral surfaces consistent across all palettes. Only swap accent tokens (primary/ring/chart colors).
+
+Theme behavior requirements:
+- Donors: can toggle light/dark/system. Donation pages should respect the mode (dark mode works) but should NOT inherit an organization’s dashboard palette unless explicitly enabled later.
+- Org admins: can toggle light/dark/system AND choose an “accent palette” for their dashboard.
+- The chosen org palette should apply to all admins of that org (store in DB).
+- Apply the org palette at the dashboard root using a stable selector:
+  - e.g., <div data-accent="classic"> ... or <html data-accent="classic">
+- Prevent FOUC: theme should render correctly on first paint.
+
+Palettes to implement (accent palettes) — use these HEX values:
+A) Juntos Clásico (default)
+- Primary: #16A34A
+- Secondary/Structure: #0B2D39 (mostly for nav/sidebar and headings, not for primary token)
+- Accent: #F4B400
+
+C) Océano Confianza
+- Primary: #0F766E
+- Accent: #F4B400
+- Keep structural navy #0B2D39 for sidebar/text emphasis
+
+D) Andes Profesional
+- Primary: #1D4ED8
+- Accent/Success: #16A34A
+- Keep structural navy #0B2D39 for sidebar/text emphasis
+
+E) Calidez Humana
+- Primary: #16A34A
+- Accent: #F97316
+- Keep structural navy #0B2D39 for sidebar/text emphasis
+
+Neutral base (keep consistent):
+- Background: #F7FAFC
+- Surface: #FFFFFF
+- Heading/Text base: #0B2D39
+(You can choose appropriate muted/border tokens as long as it looks modern and readable.)
+
+Implementation details:
+1) Create/Update ThemeProvider:
+- Create `components/theme-provider.tsx` as shadcn recommends (next-themes wrapper).
+- Wrap `app/layout.tsx` (or equivalent root layout) with ThemeProvider.
+- Use `attribute="class"` and `defaultTheme="system"` and `enableSystem`.
+- Set `disableTransitionOnChange`. :contentReference[oaicite:3]{index=3}
+
+2) Add UI controls:
+- A ThemeModeToggle (light/dark/system) using shadcn DropdownMenu + Button.
+- An AccentPalettePicker (4 options) shown only for org admins inside dashboard Settings.
+  - Show palette preview swatches.
+  - Save selection to DB (e.g. organizations.accent_theme = "classic" | "ocean" | "andes" | "warm").
+
+3) Token setup:
+- In `app/globals.css` (or your shadcn token file), keep the standard shadcn token set.
+- Define :root tokens for Light.
+- Define `.dark` tokens for Dark mode.
+- Define palette overrides using a data attribute, e.g.
+  - :root[data-accent="classic"] { --primary: ...; --ring: ...; --chart-1: ...; ... }
+  - .dark[data-accent="classic"] { ...dark variants... }
+- Convert the HEX palette colors to HSL for shadcn tokens (shadcn variables typically use HSL values).
+- Only override accent-related tokens:
+  - --primary, --primary-foreground
+  - --ring
+  - --sidebar-primary / --sidebar-accent as needed
+  - chart tokens (chart-1..chart-5) so dashboards look great. (If using shadcn charts, keep colors coherent.) :contentReference[oaicite:4]{index=4}
+
+4) Data + auth flow:
+- On dashboard load, fetch org settings (including accent_theme).
+- Apply the attribute/class before rendering the dashboard shell.
+- If there’s no org setting, default to "classic".
+- Ensure only the org admins can update their org’s accent theme.
+
+5) Update “Guía de Estilos” page:
+- Rename description to clearly explain it’s the design system + theme guide.
+- Add:
+  - Light vs Dark preview
+  - Four palette previews (A,C,D,E)
+  - Key components showcased under each palette (Buttons, Cards, Table, Form, Alerts)
+- Ensure everything looks polished and consistent.
+
+Deliverables:
+- Working light/dark/system toggle across the app.
+- Org admin dashboard palette switcher (A,C,D,E) persisted per organization.
+- Donor pages respect dark/light but do not use org accent palettes.
+- Updated “Guía de Estilos” page showing tokens + palettes + component previews.
+- Short README section: how to add a new palette (where to add CSS overrides, DB enum values, and UI picker entry).
+
+Start by:
+1) Briefly listing the files you will create/modify.
+2) Implement ThemeProvider + dark mode toggle.
+3) Implement accent palette system + CSS token overrides for A/C/D/E.
+4) Implement org settings storage + UI to change palette.
+5) Update the “Guía de Estilos” page with previews.

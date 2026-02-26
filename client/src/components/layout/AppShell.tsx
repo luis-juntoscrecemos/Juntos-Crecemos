@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { Link, useLocation } from 'wouter';
 import { useQuery } from '@tanstack/react-query';
 import { 
@@ -29,7 +30,9 @@ import {
   useSidebar,
 } from '@/components/ui/sidebar';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTheme } from '@/contexts/ThemeContext';
 import { Separator } from '@/components/ui/separator';
+import { ThemeModeToggle } from '@/components/common/ThemeModeToggle';
 import juntosLogo from '@/assets/juntos-crecemos-logo.png';
 import darkLogo from '@assets/Juntos_Crecemos_Transparent_1772133029306.png';
 import type { Organization } from '@shared/schema';
@@ -161,9 +164,10 @@ function TopBar({ organization }: { organization?: Organization | null }) {
         <SidebarTrigger data-testid="button-sidebar-toggle" />
       </div>
       <div className="flex items-center gap-3">
-        <span className="text-sm text-muted-foreground" data-testid="text-welcome-message">
+        <span className="text-sm text-muted-foreground hidden sm:inline" data-testid="text-welcome-message">
           Bienvenidos, {orgName}!
         </span>
+        <ThemeModeToggle />
         <img src={darkLogo} alt="Juntos Crecemos" className="h-8 object-contain" data-testid="img-topbar-logo" />
       </div>
     </header>
@@ -175,11 +179,22 @@ interface AppShellProps {
 }
 
 export function AppShell({ children }: AppShellProps) {
+  const { setAccent } = useTheme();
   const { data: orgResponse } = useQuery<{ data?: Organization }>({
     queryKey: ['/api/organizations/me'],
   });
   
   const organization = orgResponse?.data;
+
+  useEffect(() => {
+    if (organization?.accent_theme) {
+      const validThemes = ['classic', 'ocean', 'andes', 'warm'] as const;
+      const theme = organization.accent_theme as typeof validThemes[number];
+      if (validThemes.includes(theme)) {
+        setAccent(theme);
+      }
+    }
+  }, [organization?.accent_theme, setAccent]);
 
   const sidebarStyle = {
     "--sidebar-width": "16rem",

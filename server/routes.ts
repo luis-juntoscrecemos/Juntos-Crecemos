@@ -534,7 +534,7 @@ export async function registerRoutes(
         return res.status(403).json({ error: 'No tienes permiso para editar esta organización' });
       }
 
-      const { name, email, phone, website, description, country, city, slug, causes } = req.body;
+      const { name, email, phone, website, description, country, city, slug, causes, accent_theme } = req.body;
       const logoFile = req.file;
 
       let logoUrl: string | undefined;
@@ -581,6 +581,11 @@ export async function registerRoutes(
         } catch {
           updateData.causes = null;
         }
+      }
+
+      if (accent_theme !== undefined) {
+        const validThemes = ['classic', 'ocean', 'andes', 'warm'];
+        updateData.accent_theme = validThemes.includes(accent_theme) ? accent_theme : 'classic';
       }
 
       if (logoUrl) {

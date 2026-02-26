@@ -1,6 +1,6 @@
 import { 
   Check, X, AlertCircle, Info, Heart, Megaphone, Building2, 
-  Download, Plus, Search, Settings, Trash2, Edit, Eye
+  Download, Plus, Search, Settings, Trash2, Edit, Eye, Sun, Moon, Palette
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -20,6 +20,66 @@ import { useToast } from '@/hooks/use-toast';
 import { PageHeader } from '@/components/common/PageHeader';
 import { StatsCard } from '@/components/common/StatsCard';
 import { EmptyState } from '@/components/common/EmptyState';
+import { useTheme } from '@/contexts/ThemeContext';
+
+interface PaletteInfo {
+  id: string;
+  name: string;
+  description: string;
+  primaryLight: string;
+  primaryDark: string;
+  accentLight: string;
+  accentDark: string;
+  successLight: string;
+  successDark: string;
+}
+
+const palettes: PaletteInfo[] = [
+  {
+    id: "classic",
+    name: "Juntos Cl\u00e1sico",
+    description: "Verde confiable con acentos dorados. La identidad original de Juntos Crecemos.",
+    primaryLight: "hsl(142, 76%, 36%)",
+    primaryDark: "hsl(142, 76%, 42%)",
+    accentLight: "hsl(45, 100%, 48%)",
+    accentDark: "hsl(45, 100%, 48%)",
+    successLight: "hsl(142, 76%, 36%)",
+    successDark: "hsl(142, 76%, 42%)",
+  },
+  {
+    id: "ocean",
+    name: "Oc\u00e9ano Confianza",
+    description: "Teal profundo que transmite estabilidad y profesionalismo.",
+    primaryLight: "hsl(174, 84%, 32%)",
+    primaryDark: "hsl(174, 72%, 40%)",
+    accentLight: "hsl(45, 100%, 48%)",
+    accentDark: "hsl(45, 100%, 48%)",
+    successLight: "hsl(174, 84%, 32%)",
+    successDark: "hsl(174, 72%, 40%)",
+  },
+  {
+    id: "andes",
+    name: "Andes Profesional",
+    description: "Azul institucional con verde como acento de \u00e9xito.",
+    primaryLight: "hsl(224, 76%, 48%)",
+    primaryDark: "hsl(224, 76%, 56%)",
+    accentLight: "hsl(45, 100%, 48%)",
+    accentDark: "hsl(45, 100%, 48%)",
+    successLight: "hsl(142, 76%, 36%)",
+    successDark: "hsl(142, 76%, 42%)",
+  },
+  {
+    id: "warm",
+    name: "Calidez Humana",
+    description: "Verde principal con naranja c\u00e1lido como acento vibrante.",
+    primaryLight: "hsl(142, 76%, 36%)",
+    primaryDark: "hsl(142, 76%, 42%)",
+    accentLight: "hsl(24, 94%, 53%)",
+    accentDark: "hsl(24, 94%, 58%)",
+    successLight: "hsl(142, 76%, 36%)",
+    successDark: "hsl(142, 76%, 42%)",
+  },
+];
 
 const colorTokens = [
   { name: 'Primary (Verde)', variable: '--primary', class: 'bg-primary', textClass: 'text-primary-foreground' },
@@ -42,8 +102,108 @@ const spacingExamples = [
   { size: '16', pixels: '64px', class: 'w-16 h-8' },
 ];
 
+function PalettePreviewCard({ palette, isDark }: { palette: PaletteInfo; isDark: boolean }) {
+  const primary = isDark ? palette.primaryDark : palette.primaryLight;
+  const accent = isDark ? palette.accentDark : palette.accentLight;
+  const success = isDark ? palette.successDark : palette.successLight;
+  const bg = isDark ? "hsl(194, 40%, 10%)" : "hsl(0, 0%, 100%)";
+  const fg = isDark ? "hsl(0, 0%, 95%)" : "hsl(221, 39%, 11%)";
+  const mutedFg = isDark ? "hsl(220, 9%, 60%)" : "hsl(220, 9%, 46%)";
+  const border = isDark ? "hsl(194, 30%, 18%)" : "hsl(220, 13%, 91%)";
+
+  return (
+    <div
+      data-testid={`card-palette-preview-${palette.id}-${isDark ? "dark" : "light"}`}
+      className="rounded-md overflow-visible"
+      style={{
+        backgroundColor: bg,
+        color: fg,
+        border: `1px solid ${border}`,
+      }}
+    >
+      <div className="p-4 space-y-3">
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <div>
+            <p className="font-semibold text-sm" style={{ color: fg }}>{palette.name}</p>
+            <p className="text-xs" style={{ color: mutedFg }}>
+              {isDark ? "Modo oscuro" : "Modo claro"}
+            </p>
+          </div>
+          {isDark ? (
+            <Moon className="w-4 h-4" style={{ color: mutedFg }} />
+          ) : (
+            <Sun className="w-4 h-4" style={{ color: mutedFg }} />
+          )}
+        </div>
+
+        <p className="text-xs" style={{ color: mutedFg }}>{palette.description}</p>
+
+        <div className="flex flex-wrap gap-2">
+          <div className="flex items-center gap-1.5">
+            <div
+              className="w-6 h-6 rounded-md"
+              style={{ backgroundColor: primary }}
+              title="Primary"
+            />
+            <span className="text-xs" style={{ color: mutedFg }}>Primary</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <div
+              className="w-6 h-6 rounded-md"
+              style={{ backgroundColor: accent }}
+              title="Accent"
+            />
+            <span className="text-xs" style={{ color: mutedFg }}>Accent</span>
+          </div>
+          {palette.id === "andes" && (
+            <div className="flex items-center gap-1.5">
+              <div
+                className="w-6 h-6 rounded-md"
+                style={{ backgroundColor: success }}
+                title="Success"
+              />
+              <span className="text-xs" style={{ color: mutedFg }}>Success</span>
+            </div>
+          )}
+        </div>
+
+        <div className="flex items-center gap-2 flex-wrap">
+          <span
+            className="inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium"
+            style={{
+              backgroundColor: primary,
+              color: "#fff",
+            }}
+          >
+            Bot\u00f3n
+          </span>
+          <span
+            className="inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium"
+            style={{
+              backgroundColor: accent,
+              color: palette.id === "warm" ? "#fff" : fg,
+            }}
+          >
+            Acento
+          </span>
+          <span
+            className="inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium"
+            style={{
+              border: `1px solid ${border}`,
+              color: fg,
+            }}
+          >
+            Outline
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function StyleGuide() {
   const { toast } = useToast();
+  const { resolvedMode } = useTheme();
 
   const showToast = (variant: 'default' | 'destructive') => {
     toast({
@@ -64,10 +224,11 @@ export default function StyleGuide() {
 
       <Tabs defaultValue="colors" className="w-full">
         <TabsList className="mb-8">
-          <TabsTrigger value="colors">Colores</TabsTrigger>
-          <TabsTrigger value="typography">Tipografía</TabsTrigger>
-          <TabsTrigger value="spacing">Espaciado</TabsTrigger>
-          <TabsTrigger value="components">Componentes</TabsTrigger>
+          <TabsTrigger value="colors" data-testid="tab-colors">Colores</TabsTrigger>
+          <TabsTrigger value="themes" data-testid="tab-themes">Temas</TabsTrigger>
+          <TabsTrigger value="typography" data-testid="tab-typography">Tipografía</TabsTrigger>
+          <TabsTrigger value="spacing" data-testid="tab-spacing">Espaciado</TabsTrigger>
+          <TabsTrigger value="components" data-testid="tab-components">Componentes</TabsTrigger>
         </TabsList>
 
         <TabsContent value="colors" className="space-y-8">
@@ -100,6 +261,39 @@ export default function StyleGuide() {
               <Badge className="bg-primary text-primary-foreground">Información</Badge>
               <Badge variant="secondary">Inactivo</Badge>
               <Badge variant="outline">Borrador</Badge>
+            </div>
+          </section>
+        </TabsContent>
+
+        <TabsContent value="themes" className="space-y-8" data-testid="tab-content-themes">
+          <section>
+            <div className="flex items-center gap-3 mb-4 flex-wrap">
+              <Palette className="w-5 h-5 text-muted-foreground" />
+              <h2 className="text-xl font-semibold">Paletas de Acento</h2>
+              <Badge variant="outline" data-testid="badge-current-mode">
+                {resolvedMode === "dark" ? (
+                  <><Moon className="w-3 h-3 mr-1" /> Modo Oscuro</>
+                ) : (
+                  <><Sun className="w-3 h-3 mr-1" /> Modo Claro</>
+                )}
+              </Badge>
+            </div>
+            <p className="text-muted-foreground mb-6">
+              Cuatro paletas curadas para personalizar la apariencia del panel de administraci&oacute;n. Cada paleta se muestra en modo claro y oscuro.
+            </p>
+
+            <div className="space-y-8">
+              {palettes.map((palette) => (
+                <div key={palette.id} className="space-y-3">
+                  <h3 className="text-lg font-semibold" data-testid={`text-palette-name-${palette.id}`}>
+                    {palette.name}
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <PalettePreviewCard palette={palette} isDark={false} />
+                    <PalettePreviewCard palette={palette} isDark={true} />
+                  </div>
+                </div>
+              ))}
             </div>
           </section>
         </TabsContent>
