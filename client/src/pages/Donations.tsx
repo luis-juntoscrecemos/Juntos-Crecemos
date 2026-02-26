@@ -351,7 +351,13 @@ export default function DonationsPage() {
                   onChange={(e) => setCustomStart(e.target.value)}
                   className="w-[160px] cursor-pointer"
                   data-testid="input-date-start"
-                  onClick={(e) => (e.target as HTMLInputElement).showPicker?.()}
+                  onClick={(e) => {
+                    try {
+                      (e.target as HTMLInputElement).showPicker?.();
+                    } catch (err) {
+                      console.error('showPicker error:', err);
+                    }
+                  }}
                 />
               </div>
               <span className="text-sm text-muted-foreground">a</span>
@@ -362,7 +368,13 @@ export default function DonationsPage() {
                   onChange={(e) => setCustomEnd(e.target.value)}
                   className="w-[160px] cursor-pointer"
                   data-testid="input-date-end"
-                  onClick={(e) => (e.target as HTMLInputElement).showPicker?.()}
+                  onClick={(e) => {
+                    try {
+                      (e.target as HTMLInputElement).showPicker?.();
+                    } catch (err) {
+                      console.error('showPicker error:', err);
+                    }
+                  }}
                 />
               </div>
               <Button
