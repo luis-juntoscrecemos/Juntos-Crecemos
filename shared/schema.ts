@@ -279,6 +279,13 @@ export interface DonationIntentDetail extends DonationIntent {
   organization_slug: string | null;
 }
 
+// Donations list response (with totals)
+export interface DonationsListResponse {
+  data: Donation[];
+  totalCount: number;
+  totalAmount: number;
+}
+
 // API Response types
 export interface ApiResponse<T> {
   data?: T;

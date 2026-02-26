@@ -84,8 +84,9 @@ The verified sending domain in Resend is `mail.juntoscrecemos.co`. Donation rece
 - `POST /api/campaigns` - Create campaign (multipart form with optional image)
 - `PATCH /api/campaigns/:id` - Update campaign (multipart form with optional image)
 - `DELETE /api/campaigns/:id` - Delete campaign
-- `GET /api/donations` - List donations
+- `GET /api/donations?range=7d|30d|90d|ytd&start=&end=&campaign_id=` - List donations with date filtering, returns data + totalCount + totalAmount
 - `GET /api/donations/export` - Export donations as CSV
+- `GET /api/donations/export/pdf?range=&start=&end=&campaign_id=` - Export filtered donations as professional PDF report
 - `GET /api/donations/:id` - Get single donation detail with campaign/org info
 
 ### Public (no auth)

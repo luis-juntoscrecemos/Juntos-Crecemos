@@ -126,10 +126,22 @@ export const campaignsApi = {
 };
 
 // Donations
+export interface DonationsFilterParams {
+  campaign_id?: string;
+  range?: string;
+  start?: string;
+  end?: string;
+}
+
 export const donationsApi = {
-  list: (campaignId?: string) => {
-    const query = campaignId ? `?campaign_id=${campaignId}` : '';
-    return apiRequest<Donation[]>(`/donations${query}`);
+  list: (params?: DonationsFilterParams) => {
+    const searchParams = new URLSearchParams();
+    if (params?.campaign_id) searchParams.set('campaign_id', params.campaign_id);
+    if (params?.range) searchParams.set('range', params.range);
+    if (params?.start) searchParams.set('start', params.start);
+    if (params?.end) searchParams.set('end', params.end);
+    const query = searchParams.toString();
+    return apiRequest<Donation[]>(`/donations${query ? `?${query}` : ''}`) as Promise<{ data?: Donation[]; totalCount?: number; totalAmount?: number; error?: string }>;
   },
   
   create: (data: InsertDonation) =>
@@ -143,6 +155,23 @@ export const donationsApi = {
     const response = await fetch(`${API_BASE}/donations/export`, {
       headers: token ? { Authorization: `Bearer ${token}` } : {},
     });
+    return response.blob();
+  },
+
+  exportPdf: async (params?: DonationsFilterParams) => {
+    const searchParams = new URLSearchParams();
+    if (params?.campaign_id) searchParams.set('campaign_id', params.campaign_id);
+    if (params?.range) searchParams.set('range', params.range);
+    if (params?.start) searchParams.set('start', params.start);
+    if (params?.end) searchParams.set('end', params.end);
+    const query = searchParams.toString();
+    const token = await getAccessToken();
+    const response = await fetch(`${API_BASE}/donations/export/pdf${query ? `?${query}` : ''}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (!response.ok) {
+      throw new Error('Error al exportar PDF');
+    }
     return response.blob();
   },
 };

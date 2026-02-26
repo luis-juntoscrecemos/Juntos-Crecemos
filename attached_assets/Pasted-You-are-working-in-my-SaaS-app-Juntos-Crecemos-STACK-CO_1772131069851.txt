@@ -1,0 +1,83 @@
+You are working in my SaaS app “Juntos Crecemos”.
+
+STACK / CONTEXT
+- Frontend: Next.js (React) + Tailwind + shadcn/ui
+- Auth + DB: Supabase (Postgres)
+- Backend/API: Node.js (NOT Go). Use our existing Node API style (Express/Next API routes—match what the repo already uses).
+- Scope: Org admins must only see/export donations for their own organization.
+
+GOAL
+In Dashboard → “Donaciones”:
+1) Add date-based filtering (presets + custom range)
+2) Export the *filtered* donation results as a professional PDF (PDF only, no CSV)
+
+UI REQUIREMENTS (Dashboard → Donaciones)
+1) Add a filter bar similar to the “Panel” UX:
+   Presets:
+   - “Últimos 7 días”
+   - “Últimos 30 días”
+   - “Últimos 90 días”
+   - “Este año”
+   Custom:
+   - Start date picker (YYYY-MM-DD)
+   - End date picker (YYYY-MM-DD)
+   - Buttons: “Aplicar” and “Limpiar”
+2) On filter change, refresh the donations table and display:
+   - total results count
+   - total amount sum for the filtered range
+3) Mobile-first layout (filters wrap nicely).
+4) Persist filter state in URL query params:
+   - preset: ?range=7d|30d|90d|ytd
+   - custom: ?start=YYYY-MM-DD&end=YYYY-MM-DD
+   Ensure it survives refresh and is shareable.
+
+API REQUIREMENTS (Node)
+1) Donations list endpoint supporting filtering + pagination + totals:
+   - GET /api/orgs/:orgId/donations?range=7d|30d|90d|ytd OR start=YYYY-MM-DD&end=YYYY-MM-DD&page=1&pageSize=25
+   Response must include:
+   - items: donation rows
+   - totalCount
+   - totalAmount
+2) Security / Authorization:
+   - Validate Supabase session/JWT.
+   - Confirm the requester is an admin of orgId (use existing membership/org-role tables and logic).
+   - Absolutely prevent cross-org access.
+3) Query behavior:
+   - Filter by created_at within [start, end] (inclusive start; inclusive end or end-of-day handling—be consistent).
+   - Default sort newest-first.
+   - Add/verify DB indexes for created_at and org_id for performance if needed.
+
+PDF EXPORT (SERVER-SIDE, Node)
+1) Add a “Descargar PDF” button that exports the currently filtered results.
+2) Create endpoint:
+   - GET /api/orgs/:orgId/donations/export/pdf?range=... OR start=...&end=...
+3) Endpoint must:
+   - Enforce the same org admin authorization as the list endpoint.
+   - Generate the PDF on the server (Node) and stream/return it with:
+     - Content-Type: application/pdf
+     - Content-Disposition: attachment; filename="donaciones_<orgSlug>_<YYYYMMDD-YYYYMMDD>.pdf"
+4) PDF layout requirements:
+   - Header: Organization name + “Reporte de Donaciones”
+   - Subheader: selected date range (clearly shown)
+   - Summary: totalCount + totalAmount (formatted COP, locale es-CO by default)
+   - Table columns: Fecha, Donante, Email, Monto, Campaña (if available), Estado
+   - Footer: generated timestamp + page numbers
+5) Use a Node-friendly PDF library and document the choice in code comments (e.g., pdfkit, puppeteer/Playwright HTML→PDF). Prefer a reliable approach that yields a clean table layout.
+
+DELIVERABLES
+1) Frontend:
+   - Filter bar component
+   - URL query param sync
+   - Data fetch wiring for filtered list + totals
+   - “Descargar PDF” button that calls the export endpoint and downloads the file
+2) Backend (Node):
+   - Filterable donations endpoint (pagination + totals)
+   - PDF export endpoint
+   - Any needed DB index migrations
+3) Provide full code changes with file paths, plus steps to run/test locally:
+   - Preset filters work
+   - Custom range works + validates start <= end
+   - PDF matches current filter and respects org scoping
+4) Add minimal tests or validation checks for:
+   - Authorization (org scoping)
+   - Date filtering correctness

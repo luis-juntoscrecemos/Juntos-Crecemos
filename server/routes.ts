@@ -25,6 +25,44 @@ const sanitizeDescription = (html: string): string => {
 const PROCESSING_FEE_PERCENT = 4.5;
 const nanoidShort = customAlphabet('0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ', 6);
 
+function computeDateRange(query: { range?: string; start?: string; end?: string }): { start?: string; end?: string } {
+  if (query.start && query.end) {
+    if (query.start > query.end) return {};
+    return {
+      start: query.start.includes('T') ? query.start : query.start + 'T00:00:00.000Z',
+      end: query.end.includes('T') ? query.end : query.end + 'T23:59:59.999Z',
+    };
+  }
+  if (query.range) {
+    const now = new Date();
+    let startDate: Date;
+    switch (query.range) {
+      case '7d':
+        startDate = new Date(now);
+        startDate.setDate(now.getDate() - 7);
+        break;
+      case '30d':
+        startDate = new Date(now);
+        startDate.setDate(now.getDate() - 30);
+        break;
+      case '90d':
+        startDate = new Date(now);
+        startDate.setDate(now.getDate() - 90);
+        break;
+      case 'ytd':
+        startDate = new Date(now.getFullYear(), 0, 1);
+        break;
+      default:
+        return {};
+    }
+    return {
+      start: startDate.toISOString().split('T')[0],
+      end: now.toISOString().split('T')[0] + 'T23:59:59.999Z',
+    };
+  }
+  return {};
+}
+
 // Configure multer for file uploads
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -871,11 +909,14 @@ export async function registerRoutes(
   app.get('/api/donations', authMiddleware, async (req: AuthenticatedRequest, res) => {
     try {
       if (!req.organizationId) {
-        return res.json({ data: [] });
+        return res.json({ data: [], totalCount: 0, totalAmount: 0 });
       }
 
-      const { campaign_id } = req.query;
-      
+      const { campaign_id, range, start, end } = req.query as {
+        campaign_id?: string; range?: string; start?: string; end?: string;
+      };
+      const dateRange = computeDateRange({ range, start, end });
+
       let query = supabase
         .from('donations')
         .select('*')
@@ -885,6 +926,12 @@ export async function registerRoutes(
       if (campaign_id) {
         query = query.eq('campaign_id', campaign_id);
       }
+      if (dateRange.start) {
+        query = query.gte('created_at', dateRange.start);
+      }
+      if (dateRange.end) {
+        query = query.lte('created_at', dateRange.end);
+      }
 
       const { data, error } = await query;
 
@@ -893,7 +940,12 @@ export async function registerRoutes(
         return res.status(400).json({ error: 'Error al obtener donaciones' });
       }
 
-      res.json({ data: data || [] });
+      const donations = data || [];
+      const paidDonations = donations.filter(d => d.status === 'paid');
+      const totalCount = paidDonations.length;
+      const totalAmount = paidDonations.reduce((sum, d) => sum + (d.amount_minor || 0), 0) / 100;
+
+      res.json({ data: donations, totalCount, totalAmount });
     } catch (error) {
       console.error('Get donations error:', error);
       res.status(500).json({ error: 'Error al obtener donaciones' });
@@ -941,6 +993,160 @@ export async function registerRoutes(
     } catch (error) {
       console.error('Export donations error:', error);
       res.status(500).json({ error: 'Error al exportar donaciones' });
+    }
+  });
+
+  app.get('/api/donations/export/pdf', authMiddleware, async (req: AuthenticatedRequest, res) => {
+    try {
+      if (!req.organizationId) {
+        return res.status(400).json({ error: 'Organización requerida' });
+      }
+
+      const { campaign_id, range, start, end } = req.query as {
+        campaign_id?: string; range?: string; start?: string; end?: string;
+      };
+      const dateRange = computeDateRange({ range, start, end });
+
+      const { data: org } = await supabase
+        .from('organizations')
+        .select('name, slug')
+        .eq('id', req.organizationId)
+        .single();
+
+      let query = supabase
+        .from('donations')
+        .select('*, campaigns(title)')
+        .eq('org_id', req.organizationId)
+        .order('created_at', { ascending: false });
+
+      if (campaign_id) {
+        query = query.eq('campaign_id', campaign_id);
+      }
+      if (dateRange.start) {
+        query = query.gte('created_at', dateRange.start);
+      }
+      if (dateRange.end) {
+        query = query.lte('created_at', dateRange.end);
+      }
+
+      const { data, error } = await query;
+
+      if (error) {
+        console.error('Export PDF donations error:', error);
+        return res.status(400).json({ error: 'Error al exportar donaciones' });
+      }
+
+      const donations = data || [];
+      const paidDonations = donations.filter(d => d.status === 'paid');
+      const totalAmount = paidDonations.reduce((sum, d) => sum + (d.amount_minor || 0), 0) / 100;
+
+      const PDFDocument = (await import('pdfkit')).default;
+      const doc = new PDFDocument({ size: 'LETTER', margin: 50, bufferPages: true });
+
+      const orgSlug = org?.slug || 'org';
+      const startLabel = dateRange.start ? dateRange.start.split('T')[0] : '';
+      const endLabel = dateRange.end ? dateRange.end.split('T')[0] : '';
+      const dateRangeStr = startLabel && endLabel ? `${startLabel}_${endLabel}` : new Date().toISOString().split('T')[0];
+
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="donaciones_${orgSlug}_${dateRangeStr}.pdf"`);
+      doc.pipe(res);
+
+      const orgName = org?.name || 'Organización';
+      doc.fontSize(18).font('Helvetica-Bold').text(orgName, { align: 'center' });
+      doc.fontSize(14).font('Helvetica').text('Reporte de Donaciones', { align: 'center' });
+      doc.moveDown(0.5);
+
+      let subtitle = '';
+      if (dateRange.start && dateRange.end) {
+        const s = dateRange.start.split('T')[0];
+        const e = dateRange.end.split('T')[0];
+        subtitle = `Período: ${s} — ${e}`;
+      } else if (range) {
+        const labels: Record<string, string> = { '7d': 'Últimos 7 días', '30d': 'Últimos 30 días', '90d': 'Últimos 90 días', 'ytd': 'Este año' };
+        subtitle = labels[range as string] || '';
+      }
+      if (subtitle) {
+        doc.fontSize(10).fillColor('#555555').text(subtitle, { align: 'center' });
+        doc.moveDown(0.3);
+      }
+
+      doc.fontSize(11).fillColor('#000000')
+        .text(`Total donaciones pagadas: ${paidDonations.length}`, { continued: true })
+        .text(`     Monto total: $${totalAmount.toLocaleString('es-CO')} COP`, { align: 'right' });
+      doc.moveDown(1);
+
+      const colWidths = [70, 95, 120, 75, 100, 52];
+      const headers = ['Fecha', 'Donante', 'Email', 'Monto', 'Campaña', 'Estado'];
+      const tableLeft = doc.page.margins.left;
+      const tableWidth = colWidths.reduce((a, b) => a + b, 0);
+
+      const drawTableHeader = (yPos: number) => {
+        doc.save();
+        doc.rect(tableLeft, yPos, tableWidth, 20).fill('#f0f0f0');
+        doc.fillColor('#000000').font('Helvetica-Bold').fontSize(8);
+        let xPos = tableLeft;
+        headers.forEach((h, i) => {
+          doc.text(h, xPos + 4, yPos + 5, { width: colWidths[i] - 8, lineBreak: false });
+          xPos += colWidths[i];
+        });
+        doc.restore();
+        return yPos + 20;
+      };
+
+      const drawTableRow = (d: any, yPos: number) => {
+        const date = new Date(d.created_at).toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric' });
+        const donor = d.is_anonymous ? 'Anónimo' : (d.donor_name || 'Sin nombre');
+        const email = d.donor_email || '';
+        const amount = `$${(d.amount_minor / 100).toLocaleString('es-CO')}`;
+        const campaign = (d.campaigns as any)?.title || 'N/A';
+        const status = d.status === 'paid' ? 'Pagado' : d.status === 'pending' ? 'Pendiente' : d.status;
+
+        const cells = [date, donor, email, amount, campaign, status];
+        doc.font('Helvetica').fontSize(7).fillColor('#333333');
+        let xPos = tableLeft;
+        cells.forEach((cell, i) => {
+          doc.text(cell, xPos + 4, yPos + 4, { width: colWidths[i] - 8, lineBreak: false });
+          xPos += colWidths[i];
+        });
+        return yPos + 18;
+      };
+
+      let y = drawTableHeader(doc.y);
+
+      for (const d of donations) {
+        if (y > doc.page.height - doc.page.margins.bottom - 40) {
+          doc.addPage();
+          y = drawTableHeader(doc.page.margins.top);
+        }
+        y = drawTableRow(d, y);
+      }
+
+      const pages = doc.bufferedPageRange();
+      for (let i = pages.start; i < pages.start + pages.count; i++) {
+        doc.switchToPage(i);
+        const footerY = doc.page.height - doc.page.margins.bottom + 10;
+        doc.fontSize(7).fillColor('#999999')
+          .text(
+            `Generado: ${new Date().toLocaleString('es-CO')}`,
+            doc.page.margins.left,
+            footerY,
+            { width: tableWidth / 2, align: 'left', lineBreak: false }
+          )
+          .text(
+            `Página ${i - pages.start + 1} de ${pages.count}`,
+            doc.page.margins.left + tableWidth / 2,
+            footerY,
+            { width: tableWidth / 2, align: 'right', lineBreak: false }
+          );
+      }
+
+      doc.end();
+    } catch (error) {
+      console.error('Export PDF donations error:', error);
+      if (!res.headersSent) {
+        res.status(500).json({ error: 'Error al exportar donaciones en PDF' });
+      }
     }
   });
 
