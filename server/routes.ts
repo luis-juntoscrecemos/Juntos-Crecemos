@@ -227,6 +227,7 @@ export async function registerRoutes(
             description: `Apoya a ${orgName.trim()} con tu donación`,
             currency: 'COP',
             is_active: true,
+            suggested_amounts: [100000, 500000, 1000000],
           });
 
         if (campaignError) {
