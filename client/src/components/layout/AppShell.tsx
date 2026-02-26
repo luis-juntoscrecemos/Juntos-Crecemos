@@ -31,6 +31,7 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 import { Separator } from '@/components/ui/separator';
 import juntosLogo from '@/assets/juntos-crecemos-logo.png';
+import darkLogo from '@assets/Juntos_Crecemos_Transparent_1772133029306.png';
 import type { Organization } from '@shared/schema';
 
 const mainNavItems = [
@@ -163,7 +164,7 @@ function TopBar({ organization }: { organization?: Organization | null }) {
         <span className="text-sm text-muted-foreground" data-testid="text-welcome-message">
           Bienvenidos, {orgName}!
         </span>
-        <img src={juntosLogo} alt="Juntos Crecemos" className="h-8 w-8 object-contain" />
+        <img src={darkLogo} alt="Juntos Crecemos" className="h-8 object-contain" data-testid="img-topbar-logo" />
       </div>
     </header>
   );

@@ -1052,6 +1052,15 @@ export async function registerRoutes(
       res.setHeader('Content-Disposition', `attachment; filename="donaciones_${orgSlug}_${dateRangeStr}.pdf"`);
       doc.pipe(res);
 
+      const path = await import('path');
+      const fs = await import('fs');
+      const logoPath = path.default.join(process.cwd(), 'server', 'assets', 'juntos-crecemos-logo.png');
+      try {
+        if (fs.default.existsSync(logoPath)) {
+          doc.image(logoPath, doc.page.margins.left, doc.page.margins.top, { width: 60 });
+        }
+      } catch (e) {}
+
       const orgName = org?.name || 'Organización';
       doc.fontSize(18).font('Helvetica-Bold').text(orgName, { align: 'center' });
       doc.fontSize(14).font('Helvetica').text('Reporte de Donaciones', { align: 'center' });

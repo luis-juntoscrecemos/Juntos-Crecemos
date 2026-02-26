@@ -111,10 +111,30 @@ export default function DonationsPage() {
   const dateFilterParams = useMemo((): DonationsFilterParams => {
     const params: DonationsFilterParams = {};
     if (datePreset) {
-      params.range = datePreset;
+      const now = new Date();
+      let startDate: Date;
+      switch (datePreset) {
+        case '7d':
+          startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 7);
+          break;
+        case '30d':
+          startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 30);
+          break;
+        case '90d':
+          startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 90);
+          break;
+        case 'ytd':
+          startDate = new Date(now.getFullYear(), 0, 1);
+          break;
+      }
+      const endDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+      params.start = startDate.toISOString();
+      params.end = endDate.toISOString();
     } else if (appliedCustomStart && appliedCustomEnd) {
-      params.start = appliedCustomStart;
-      params.end = appliedCustomEnd;
+      const startLocal = new Date(appliedCustomStart + 'T00:00:00');
+      const endLocal = new Date(appliedCustomEnd + 'T23:59:59.999');
+      params.start = startLocal.toISOString();
+      params.end = endLocal.toISOString();
     }
     if (campaignFilter && campaignFilter !== 'all') {
       params.campaign_id = campaignFilter;
@@ -166,20 +186,9 @@ export default function DonationsPage() {
 
   const hasDateFilter = datePreset !== null || (appliedCustomStart !== '' && appliedCustomEnd !== '');
 
-  const queryParams = useMemo(() => {
-    const p: DonationsFilterParams = {};
-    if (datePreset) p.range = datePreset;
-    else if (appliedCustomStart && appliedCustomEnd) {
-      p.start = appliedCustomStart;
-      p.end = appliedCustomEnd;
-    }
-    if (campaignFilter && campaignFilter !== 'all') p.campaign_id = campaignFilter;
-    return p;
-  }, [datePreset, appliedCustomStart, appliedCustomEnd, campaignFilter]);
-
   const { data: donationsResponse, isLoading: donationsLoading } = useQuery({
-    queryKey: ['/api/donations', queryParams],
-    queryFn: () => donationsApi.list(queryParams),
+    queryKey: ['/api/donations', dateFilterParams],
+    queryFn: () => donationsApi.list(dateFilterParams),
   });
 
   const { data: campaignsResponse, isLoading: campaignsLoading } = useQuery<{ data?: CampaignWithTotals[] }>({
