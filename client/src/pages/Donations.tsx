@@ -344,21 +344,27 @@ export default function DonationsPage() {
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-sm text-muted-foreground">Rango personalizado:</span>
-              <Input
-                type="date"
-                value={customStart}
-                onChange={(e) => setCustomStart(e.target.value)}
-                className="w-[160px]"
-                data-testid="input-date-start"
-              />
+              <div className="relative">
+                <Input
+                  type="date"
+                  value={customStart}
+                  onChange={(e) => setCustomStart(e.target.value)}
+                  className="w-[160px] cursor-pointer"
+                  data-testid="input-date-start"
+                  onClick={(e) => (e.target as HTMLInputElement).showPicker?.()}
+                />
+              </div>
               <span className="text-sm text-muted-foreground">a</span>
-              <Input
-                type="date"
-                value={customEnd}
-                onChange={(e) => setCustomEnd(e.target.value)}
-                className="w-[160px]"
-                data-testid="input-date-end"
-              />
+              <div className="relative">
+                <Input
+                  type="date"
+                  value={customEnd}
+                  onChange={(e) => setCustomEnd(e.target.value)}
+                  className="w-[160px] cursor-pointer"
+                  data-testid="input-date-end"
+                  onClick={(e) => (e.target as HTMLInputElement).showPicker?.()}
+                />
+              </div>
               <Button
                 variant="outline"
                 size="sm"
