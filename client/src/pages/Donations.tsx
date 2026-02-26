@@ -344,39 +344,21 @@ export default function DonationsPage() {
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-sm text-muted-foreground">Rango personalizado:</span>
-              <div className="relative">
-                <Input
-                  type="date"
-                  value={customStart}
-                  onChange={(e) => setCustomStart(e.target.value)}
-                  className="w-[160px] cursor-pointer"
-                  data-testid="input-date-start"
-                  onClick={(e) => {
-                    try {
-                      (e.target as HTMLInputElement).showPicker?.();
-                    } catch (err) {
-                      console.error('showPicker error:', err);
-                    }
-                  }}
-                />
-              </div>
+              <Input
+                type="date"
+                value={customStart}
+                onChange={(e) => setCustomStart(e.target.value)}
+                className="w-[160px] cursor-pointer date-input-clickable"
+                data-testid="input-date-start"
+              />
               <span className="text-sm text-muted-foreground">a</span>
-              <div className="relative">
-                <Input
-                  type="date"
-                  value={customEnd}
-                  onChange={(e) => setCustomEnd(e.target.value)}
-                  className="w-[160px] cursor-pointer"
-                  data-testid="input-date-end"
-                  onClick={(e) => {
-                    try {
-                      (e.target as HTMLInputElement).showPicker?.();
-                    } catch (err) {
-                      console.error('showPicker error:', err);
-                    }
-                  }}
-                />
-              </div>
+              <Input
+                type="date"
+                value={customEnd}
+                onChange={(e) => setCustomEnd(e.target.value)}
+                className="w-[160px] cursor-pointer date-input-clickable"
+                data-testid="input-date-end"
+              />
               <Button
                 variant="outline"
                 size="sm"
