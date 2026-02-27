@@ -39,6 +39,7 @@ function formatCurrency(amount: number, currency: string = 'COP'): string {
 
 function formatDate(dateString: string): string {
   return new Intl.DateTimeFormat('es-CO', {
+    timeZone: 'America/Bogota',
     day: 'numeric',
     month: 'long',
     year: 'numeric',
@@ -53,6 +54,9 @@ const CADENCE_LABELS: Record<string, string> = {
   semiannual: 'Semestral',
   yearly: 'Anual',
 };
+
+const FONT_STACK = "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif";
+const MONO_STACK = "'SF Mono', 'Cascadia Code', 'Fira Code', Consolas, monospace";
 
 export async function sendDonationReceipt(data: DonationReceiptData): Promise<{ success: boolean; error?: string }> {
   try {
@@ -80,11 +84,11 @@ export async function sendDonationReceipt(data: DonationReceiptData): Promise<{ 
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+  </style>
 </head>
-<body style="margin:0;padding:0;background-color:#f4f4f5;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+<body style="margin:0;padding:0;background-color:#f4f4f5;font-family:${FONT_STACK};">
   <div style="max-width:560px;margin:0 auto;padding:32px 16px;">
     <div style="background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #e4e4e7;">
       
@@ -94,69 +98,69 @@ export async function sendDonationReceipt(data: DonationReceiptData): Promise<{ 
             <td style="width:56px;height:56px;background:rgba(255,255,255,0.2);border-radius:50%;text-align:center;vertical-align:middle;font-size:28px;color:#ffffff;line-height:56px;">&#10003;</td>
           </tr>
         </table>
-        <h1 style="color:#ffffff;font-size:22px;margin:0 0 4px;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">Recibo de donaci\u00f3n</h1>
-        <p style="color:rgba(255,255,255,0.85);font-size:14px;margin:0;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">Gracias por tu generosidad</p>
+        <h1 style="color:#ffffff;font-size:24px;margin:0 0 4px;font-family:${FONT_STACK};">Recibo de donaci\u00f3n</h1>
+        <p style="color:rgba(255,255,255,0.85);font-size:15px;margin:0;font-family:${FONT_STACK};">Gracias por tu generosidad</p>
       </div>
       
       <div style="padding:24px;">
-        <table style="width:100%;border-collapse:collapse;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+        <table style="width:100%;border-collapse:collapse;font-family:${FONT_STACK};">
           <tr>
-            <td style="padding:8px 0;color:#71717a;font-size:13px;">ID Transacci\u00f3n</td>
-            <td style="padding:8px 0;text-align:right;font-family:'SF Mono','Cascadia Code','Fira Code',monospace;font-size:13px;font-weight:600;color:#18181b;">#${safeShortId}</td>
+            <td style="padding:10px 0;color:#71717a;font-size:14px;">ID Transacci\u00f3n</td>
+            <td style="padding:10px 0;text-align:right;font-family:${MONO_STACK};font-size:14px;font-weight:600;color:#18181b;">#${safeShortId}</td>
           </tr>
           <tr>
-            <td style="padding:8px 0;color:#71717a;font-size:13px;">Fecha</td>
-            <td style="padding:8px 0;text-align:right;font-size:13px;color:#18181b;">${formatDate(data.paidAt)}</td>
+            <td style="padding:10px 0;color:#71717a;font-size:14px;">Fecha</td>
+            <td style="padding:10px 0;text-align:right;font-size:14px;color:#18181b;">${formatDate(data.paidAt)}</td>
           </tr>
           <tr>
-            <td style="padding:8px 0;color:#71717a;font-size:13px;">Donante</td>
-            <td style="padding:8px 0;text-align:right;font-size:13px;color:#18181b;">${data.isAnonymous ? 'An\u00f3nimo' : safeDonorName}</td>
+            <td style="padding:10px 0;color:#71717a;font-size:14px;">Donante</td>
+            <td style="padding:10px 0;text-align:right;font-size:14px;color:#18181b;">${data.isAnonymous ? 'An\u00f3nimo' : safeDonorName}</td>
           </tr>
           <tr>
-            <td style="padding:8px 0;color:#71717a;font-size:13px;">Organizaci\u00f3n</td>
-            <td style="padding:8px 0;text-align:right;font-size:13px;color:#18181b;">${safeOrgName}</td>
+            <td style="padding:10px 0;color:#71717a;font-size:14px;">Organizaci\u00f3n</td>
+            <td style="padding:10px 0;text-align:right;font-size:14px;color:#18181b;">${safeOrgName}</td>
           </tr>
           <tr>
-            <td style="padding:8px 0;color:#71717a;font-size:13px;">Campa\u00f1a</td>
-            <td style="padding:8px 0;text-align:right;font-size:13px;color:#18181b;">${safeCampaignTitle}</td>
+            <td style="padding:10px 0;color:#71717a;font-size:14px;">Campa\u00f1a</td>
+            <td style="padding:10px 0;text-align:right;font-size:14px;color:#18181b;">${safeCampaignTitle}</td>
           </tr>
           <tr>
-            <td style="padding:8px 0;color:#71717a;font-size:13px;">Tipo</td>
-            <td style="padding:8px 0;text-align:right;font-size:13px;color:#18181b;">${data.donationType === 'recurring' ? `Recurrente (${recurringLabel})` : '\u00danica'}</td>
+            <td style="padding:10px 0;color:#71717a;font-size:14px;">Tipo</td>
+            <td style="padding:10px 0;text-align:right;font-size:14px;color:#18181b;">${data.donationType === 'recurring' ? `Recurrente (${recurringLabel})` : '\u00danica'}</td>
           </tr>
         </table>
         
         <div style="margin:16px 0;border-top:1px solid #e4e4e7;"></div>
         
-        <table style="width:100%;border-collapse:collapse;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+        <table style="width:100%;border-collapse:collapse;font-family:${FONT_STACK};">
           <tr>
-            <td style="padding:6px 0;color:#71717a;font-size:13px;">Donaci\u00f3n</td>
-            <td style="padding:6px 0;text-align:right;font-size:13px;color:#18181b;">${formatCurrency(data.amount, data.currency)}</td>
+            <td style="padding:8px 0;color:#71717a;font-size:14px;">Donaci\u00f3n</td>
+            <td style="padding:8px 0;text-align:right;font-size:14px;color:#18181b;">${formatCurrency(data.amount, data.currency)}</td>
           </tr>
           ${data.feeAmount > 0 ? `
           <tr>
-            <td style="padding:6px 0;color:#71717a;font-size:13px;">Tarifas de procesamiento</td>
-            <td style="padding:6px 0;text-align:right;font-size:13px;color:#18181b;">${formatCurrency(data.feeAmount, data.currency)}</td>
+            <td style="padding:8px 0;color:#71717a;font-size:14px;">Tarifas de procesamiento</td>
+            <td style="padding:8px 0;text-align:right;font-size:14px;color:#18181b;">${formatCurrency(data.feeAmount, data.currency)}</td>
           </tr>
           ` : ''}
           <tr>
-            <td style="padding:12px 0 6px;font-size:15px;font-weight:700;color:#18181b;">Total</td>
-            <td style="padding:12px 0 6px;text-align:right;font-size:15px;font-weight:700;color:#16A34A;">${formatCurrency(data.totalAmount, data.currency)}</td>
+            <td style="padding:12px 0 8px;font-size:16px;font-weight:700;color:#18181b;">Total</td>
+            <td style="padding:12px 0 8px;text-align:right;font-size:16px;font-weight:700;color:#16A34A;">${formatCurrency(data.totalAmount, data.currency)}</td>
           </tr>
         </table>
 
         ${safeDonorNote ? `
         <div style="margin:16px 0;border-top:1px solid #e4e4e7;"></div>
         <div style="background:#f4f4f5;border-radius:8px;padding:12px;">
-          <p style="color:#71717a;font-size:12px;margin:0 0 4px;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">Tu mensaje:</p>
-          <p style="color:#18181b;font-size:13px;margin:0;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">${safeDonorNote}</p>
+          <p style="color:#71717a;font-size:13px;margin:0 0 4px;font-family:${FONT_STACK};">Tu mensaje:</p>
+          <p style="color:#18181b;font-size:14px;margin:0;font-family:${FONT_STACK};">${safeDonorNote}</p>
         </div>
         ` : ''}
       </div>
       
       <div style="background:#f4f4f5;padding:20px 24px;text-align:center;">
         <img src="${logoUrl}" alt="Juntos Crecemos" width="140" height="auto" style="display:block;margin:0 auto 12px;max-width:140px;height:auto;" />
-        <p style="color:#71717a;font-size:12px;margin:0;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+        <p style="color:#71717a;font-size:12px;margin:0;font-family:${FONT_STACK};">
           Este recibo fue generado por Juntos Crecemos en nombre de ${safeOrgName}.
         </p>
       </div>
