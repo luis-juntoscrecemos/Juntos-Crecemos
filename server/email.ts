@@ -71,30 +71,38 @@ export async function sendDonationReceipt(data: DonationReceiptData): Promise<{ 
     const safeShortId = escapeHtml(data.shortId);
     const safeDonorNote = data.donorNote ? escapeHtml(data.donorNote) : null;
 
+    const appUrl = (process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : process.env.REPLIT_DEPLOYMENT_URL ? `https://${process.env.REPLIT_DEPLOYMENT_URL}` : 'https://juntoscrecemos.co');
+    const logoUrl = `${appUrl}/branding/juntos-crecemos-logo.png`;
+
     const htmlContent = `
 <!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
 </head>
-<body style="margin:0;padding:0;background-color:#f4f4f5;font-family:Inter,Arial,sans-serif;">
+<body style="margin:0;padding:0;background-color:#f4f4f5;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
   <div style="max-width:560px;margin:0 auto;padding:32px 16px;">
     <div style="background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #e4e4e7;">
       
       <div style="background:#16A34A;padding:32px 24px;text-align:center;">
-        <div style="width:56px;height:56px;background:rgba(255,255,255,0.2);border-radius:50%;margin:0 auto 16px;display:flex;align-items:center;justify-content:center;">
-          <span style="font-size:28px;color:#ffffff;">&#10003;</span>
-        </div>
-        <h1 style="color:#ffffff;font-size:22px;margin:0 0 4px;">Recibo de donación</h1>
-        <p style="color:rgba(255,255,255,0.85);font-size:14px;margin:0;">Gracias por tu generosidad</p>
+        <table role="presentation" style="margin:0 auto 16px;border:none;border-collapse:collapse;">
+          <tr>
+            <td style="width:56px;height:56px;background:rgba(255,255,255,0.2);border-radius:50%;text-align:center;vertical-align:middle;font-size:28px;color:#ffffff;line-height:56px;">&#10003;</td>
+          </tr>
+        </table>
+        <h1 style="color:#ffffff;font-size:22px;margin:0 0 4px;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">Recibo de donaci\u00f3n</h1>
+        <p style="color:rgba(255,255,255,0.85);font-size:14px;margin:0;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">Gracias por tu generosidad</p>
       </div>
       
       <div style="padding:24px;">
-        <table style="width:100%;border-collapse:collapse;">
+        <table style="width:100%;border-collapse:collapse;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
           <tr>
-            <td style="padding:8px 0;color:#71717a;font-size:13px;">ID Transacción</td>
-            <td style="padding:8px 0;text-align:right;font-family:monospace;font-size:13px;font-weight:600;color:#18181b;">#${safeShortId}</td>
+            <td style="padding:8px 0;color:#71717a;font-size:13px;">ID Transacci\u00f3n</td>
+            <td style="padding:8px 0;text-align:right;font-family:'SF Mono','Cascadia Code','Fira Code',monospace;font-size:13px;font-weight:600;color:#18181b;">#${safeShortId}</td>
           </tr>
           <tr>
             <td style="padding:8px 0;color:#71717a;font-size:13px;">Fecha</td>
@@ -102,27 +110,27 @@ export async function sendDonationReceipt(data: DonationReceiptData): Promise<{ 
           </tr>
           <tr>
             <td style="padding:8px 0;color:#71717a;font-size:13px;">Donante</td>
-            <td style="padding:8px 0;text-align:right;font-size:13px;color:#18181b;">${data.isAnonymous ? 'Anónimo' : safeDonorName}</td>
+            <td style="padding:8px 0;text-align:right;font-size:13px;color:#18181b;">${data.isAnonymous ? 'An\u00f3nimo' : safeDonorName}</td>
           </tr>
           <tr>
-            <td style="padding:8px 0;color:#71717a;font-size:13px;">Organización</td>
+            <td style="padding:8px 0;color:#71717a;font-size:13px;">Organizaci\u00f3n</td>
             <td style="padding:8px 0;text-align:right;font-size:13px;color:#18181b;">${safeOrgName}</td>
           </tr>
           <tr>
-            <td style="padding:8px 0;color:#71717a;font-size:13px;">Campaña</td>
+            <td style="padding:8px 0;color:#71717a;font-size:13px;">Campa\u00f1a</td>
             <td style="padding:8px 0;text-align:right;font-size:13px;color:#18181b;">${safeCampaignTitle}</td>
           </tr>
           <tr>
             <td style="padding:8px 0;color:#71717a;font-size:13px;">Tipo</td>
-            <td style="padding:8px 0;text-align:right;font-size:13px;color:#18181b;">${data.donationType === 'recurring' ? `Recurrente (${recurringLabel})` : 'Única'}</td>
+            <td style="padding:8px 0;text-align:right;font-size:13px;color:#18181b;">${data.donationType === 'recurring' ? `Recurrente (${recurringLabel})` : '\u00danica'}</td>
           </tr>
         </table>
         
         <div style="margin:16px 0;border-top:1px solid #e4e4e7;"></div>
         
-        <table style="width:100%;border-collapse:collapse;">
+        <table style="width:100%;border-collapse:collapse;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
           <tr>
-            <td style="padding:6px 0;color:#71717a;font-size:13px;">Donación</td>
+            <td style="padding:6px 0;color:#71717a;font-size:13px;">Donaci\u00f3n</td>
             <td style="padding:6px 0;text-align:right;font-size:13px;color:#18181b;">${formatCurrency(data.amount, data.currency)}</td>
           </tr>
           ${data.feeAmount > 0 ? `
@@ -140,14 +148,15 @@ export async function sendDonationReceipt(data: DonationReceiptData): Promise<{ 
         ${safeDonorNote ? `
         <div style="margin:16px 0;border-top:1px solid #e4e4e7;"></div>
         <div style="background:#f4f4f5;border-radius:8px;padding:12px;">
-          <p style="color:#71717a;font-size:12px;margin:0 0 4px;">Tu mensaje:</p>
-          <p style="color:#18181b;font-size:13px;margin:0;">${safeDonorNote}</p>
+          <p style="color:#71717a;font-size:12px;margin:0 0 4px;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">Tu mensaje:</p>
+          <p style="color:#18181b;font-size:13px;margin:0;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">${safeDonorNote}</p>
         </div>
         ` : ''}
       </div>
       
-      <div style="background:#f4f4f5;padding:16px 24px;text-align:center;">
-        <p style="color:#71717a;font-size:12px;margin:0;">
+      <div style="background:#f4f4f5;padding:20px 24px;text-align:center;">
+        <img src="${logoUrl}" alt="Juntos Crecemos" width="140" height="auto" style="display:block;margin:0 auto 12px;max-width:140px;height:auto;" />
+        <p style="color:#71717a;font-size:12px;margin:0;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
           Este recibo fue generado por Juntos Crecemos en nombre de ${safeOrgName}.
         </p>
       </div>

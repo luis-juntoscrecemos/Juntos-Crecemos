@@ -14,7 +14,6 @@ import NotFound from "@/pages/not-found";
 import Login from "@/pages/auth/Login";
 import Register from "@/pages/auth/Register";
 import Dashboard from "@/pages/Dashboard";
-import StyleGuide from "@/pages/StyleGuide";
 import OrganizationPage from "@/pages/Organization";
 import CampaignsPage from "@/pages/Campaigns";
 import DonationsPage from "@/pages/Donations";
@@ -205,12 +204,6 @@ function Router() {
       <Route path="/dashboard">
         <ProtectedRoute>
           <Dashboard />
-        </ProtectedRoute>
-      </Route>
-
-      <Route path="/style-guide">
-        <ProtectedRoute>
-          <StyleGuide />
         </ProtectedRoute>
       </Route>
 

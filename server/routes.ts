@@ -7,6 +7,7 @@ import multer, { FileFilterCallback } from "multer";
 import { customAlphabet } from "nanoid";
 import { sendDonationReceipt } from "./email";
 import sanitizeHtml from "sanitize-html";
+import { ObjectStorageService, ObjectNotFoundError } from "./replit_integrations/object_storage";
 
 const sanitizeDescription = (html: string): string => {
   return sanitizeHtml(html, {
@@ -1883,6 +1884,24 @@ export async function registerRoutes(
     } catch (error) {
       console.error('Donations by month error:', error);
       res.status(500).json({ error: 'Error al obtener datos' });
+    }
+  });
+
+  // ============================================
+  // Public Branding Assets (for emails, etc.)
+  // ============================================
+  const objectStorageService = new ObjectStorageService();
+
+  app.get('/branding/:filename', async (req, res) => {
+    try {
+      const file = await objectStorageService.searchPublicObject(`branding/${req.params.filename}`);
+      if (!file) {
+        return res.status(404).json({ error: 'Not found' });
+      }
+      await objectStorageService.downloadObject(file, res, 86400);
+    } catch (error) {
+      console.error('Branding asset error:', error);
+      res.status(500).json({ error: 'Error serving asset' });
     }
   });
 

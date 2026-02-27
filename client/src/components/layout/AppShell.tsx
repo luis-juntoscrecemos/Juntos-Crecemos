@@ -9,8 +9,7 @@ import {
   Settings,
   LogOut,
   Menu,
-  ChevronLeft,
-  Palette
+  ChevronLeft
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -45,7 +44,6 @@ const mainNavItems = [
 ];
 
 const secondaryNavItems = [
-  { title: 'Guía de Estilos', href: '/style-guide', icon: Palette },
   { title: 'Configuración', href: '/settings', icon: Settings },
 ];
 

@@ -72,6 +72,12 @@ Note: Frontend receives Supabase config via `/api/config` endpoint to avoid need
 ### Resend Email Setup
 The verified sending domain in Resend is `mail.juntoscrecemos.co`. Donation receipt emails are sent from `gracias@mail.juntoscrecemos.co` with reply-to `hola@juntoscrecemos.co` (Google Workspace inbox). These defaults are hardcoded and can be overridden via `EMAIL_FROM` and `EMAIL_REPLY_TO` env vars.
 
+### Email Template
+- Font: Inter (via Google Fonts import) with system fallback stack (-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif)
+- Checkmark icon: Uses table-based centering for email client compatibility (no flexbox)
+- Logo: Juntos Crecemos logo in footer, served from `/branding/juntos-crecemos-logo.png` (object storage public bucket)
+- Logo uploaded to object storage at `public/branding/juntos-crecemos-logo.png`
+
 ## API Endpoints
 
 ### Protected (requires auth)
@@ -98,6 +104,7 @@ The verified sending domain in Resend is `mail.juntoscrecemos.co`. Donation rece
 - `GET /api/public/donation-intents/:id` - Get donation intent details with campaign/org info
 - `POST /api/auth/register-org` - Register new organization (multipart form with logo upload)
 - `GET /terminos` - Public Terms & Conditions page
+- `GET /branding/:filename` - Serve public branding assets (logo, etc.) from object storage
 
 ### Donor Dashboard (requires donor auth)
 - `GET /api/donor/check` - Check if user has donor account
