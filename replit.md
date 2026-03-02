@@ -25,25 +25,29 @@ client/
 ├── src/
 │   ├── components/       # Reusable UI components
 │   │   ├── common/       # EmptyState, PageHeader, StatsCard, LoadingSpinner, RichTextEditor, RichTextDisplay, ThemeModeToggle
-│   │   ├── layout/       # AppShell (org), DonorShell (donor) with sidebars
+│   │   ├── layout/       # AppShell (org), DonorShell (donor), InternalShell (internal admin) with sidebars
 │   │   └── ui/           # shadcn/ui base components
 │   ├── contexts/         # AuthContext for Supabase auth, ThemeContext for dark mode + accent palettes
 │   ├── hooks/            # Custom React hooks
-│   ├── lib/              # API client, donorApi, Supabase client, utilities
+│   ├── lib/              # API client, donorApi, internalApi, Supabase client, utilities
 │   └── pages/            # Route pages
 │       ├── auth/         # Login, Register (for orgs)
 │       ├── donor/        # DonorDashboard, DonorDonations, DonorFavorites, DonorSettings, DonorLogin
+│       ├── internal/     # InternalLogin, InternalDashboard, InternalOrganizations, InternalOrgDetail, InternalDonors, InternalDonorDetail, InternalDonations, InternalAuditLog, InternalHealth, InternalSettings, AcceptInvite
 │       └── public/       # DonatePage (public donation form)
 server/
-├── middleware/           # Auth middleware (authMiddleware, donorAuthMiddleware)
+├── middleware/           # Auth middleware (authMiddleware, donorAuthMiddleware, internalAuthMiddleware)
 ├── routes.ts             # API routes (org + donor endpoints)
+├── internalRoutes.ts     # Internal admin API routes (/api/internal/*)
+├── internalAudit.ts      # Audit logging helper
 ├── supabase.ts           # Supabase server client + helper functions
 └── index.ts              # Express server setup
 shared/
-└── schema.ts             # TypeScript types (includes DonorAccount, Favorite, DonorDashboardStats)
+└── schema.ts             # TypeScript types (includes DonorAccount, Favorite, DonorDashboardStats, InternalAdmin, InternalAdminInvite, InternalAuditLog)
 docs/
 ├── supabase-setup.sql    # Initial Supabase setup (storage, orgs RLS)
 ├── donor-dashboard-setup.sql  # Donor tables, RLS policies, claim function
+├── internal-admin-migration.sql # Internal admin tables, audit logs, org status column
 ├── recurring-migration.sql    # Add recurring donation columns to campaigns
 ├── causes-migration.sql       # Add causes column to organizations
 └── accent-theme-migration.sql # Add accent_theme column to organizations
@@ -58,6 +62,9 @@ Core tables:
 - **donations**: Individual donations (amount_minor, currency, status, donor_name, donor_email, is_recurring, is_anonymous, donor_account_id)
 - **donor_accounts**: Donor user accounts linked to auth.users (auth_user_id, email, full_name, email_verified)
 - **favorites**: Donor's favorite organizations (donor_account_id, organization_id)
+- **internal_admins**: Internal staff accounts (user_id, email, role, status)
+- **internal_admin_invites**: Invite tokens for new internal admins (email, role, token, expires_at, accepted_at, created_by)
+- **internal_audit_logs**: Audit trail for internal actions (actor_user_id, actor_email, action, entity_type, entity_id, metadata)
 
 ## Environment Variables (Secrets)
 - `SUPABASE_URL`: Supabase project URL
@@ -118,6 +125,27 @@ The verified sending domain in Resend is `mail.juntoscrecemos.co`. Donation rece
 - `POST /api/donor/favorites` - Add favorite organization
 - `DELETE /api/donor/favorites/:organizationId` - Remove favorite
 - `GET /api/donor/favorites/check/:organizationId` - Check if org is favorited
+
+### Internal Admin (requires internal auth)
+- `GET /api/internal/check` - Check if user is internal admin
+- `GET /api/internal/metrics?range=7|30|90|all` - Platform KPI stats
+- `GET /api/internal/metrics/series?range=` - Donations over time chart data
+- `GET /api/internal/metrics/top-orgs?range=&limit=` - Top organizations by donations
+- `GET /api/internal/orgs?search=&page=&pageSize=&sort=&sortDir=` - Paginated organizations
+- `GET /api/internal/orgs/:id` - Organization detail with campaigns, donations, stats
+- `POST /api/internal/orgs/:id/status` - Suspend/restore organization (SUPER_ADMIN)
+- `GET /api/internal/donors?search=&page=&pageSize=` - Paginated donors
+- `GET /api/internal/donors/:id` - Donor detail with donation history
+- `GET /api/internal/donations?dateStart=&dateEnd=&orgId=&status=&page=&pageSize=` - Filtered donations
+- `GET /api/internal/admins` - List internal admins
+- `POST /api/internal/invites` - Create admin invite (SUPER_ADMIN)
+- `POST /api/internal/invites/accept` - Accept invite with token
+- `POST /api/internal/impersonation/start` - Start org impersonation (SUPER_ADMIN)
+- `POST /api/internal/impersonation/stop` - Stop impersonation
+- `GET /api/internal/exports/orgs` - Export organizations CSV
+- `GET /api/internal/exports/donations` - Export donations CSV
+- `GET /api/internal/audit-logs?page=&pageSize=&action=` - Audit log listing
+- `GET /api/internal/health` - System health check
 
 ## Running the App
 The app runs via the "Start application" workflow which executes `npm run dev`. This starts both the Express backend and Vite frontend dev server.

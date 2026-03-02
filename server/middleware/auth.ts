@@ -35,6 +35,10 @@ export async function authMiddleware(
   // Get user's organization (org admin account)
   const orgData = await getUserOrganization(user.userId);
   if (orgData) {
+    const org = orgData.organization as any;
+    if (org && org.status === 'SUSPENDED') {
+      return res.status(403).json({ error: 'ACCOUNT_SUSPENDED', message: 'Tu organización ha sido suspendida. Contacta soporte para más información.' });
+    }
     req.organizationId = orgData.organizationId;
     req.organizationRole = orgData.role;
     req.isOrgUser = true;

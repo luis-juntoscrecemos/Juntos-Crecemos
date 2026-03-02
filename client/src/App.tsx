@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Switch, Route, useLocation } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider, useQuery } from "@tanstack/react-query";
@@ -9,6 +9,7 @@ import { ThemeProvider } from "@/contexts/ThemeContext";
 import { AppShell } from "@/components/layout/AppShell";
 import { LoadingPage } from "@/components/common/LoadingSpinner";
 import { donorApi } from "@/lib/donorApi";
+import { internalApi } from "@/lib/internalApi";
 
 import NotFound from "@/pages/not-found";
 import Login from "@/pages/auth/Login";
@@ -31,9 +32,31 @@ import DonorFavorites from "@/pages/donor/DonorFavorites";
 import DonorSettings from "@/pages/donor/DonorSettings";
 import NoDonorProfile from "@/pages/donor/NoDonorProfile";
 
+import { InternalShell } from "@/components/layout/InternalShell";
+import InternalLogin from "@/pages/internal/InternalLogin";
+import InternalDashboard from "@/pages/internal/InternalDashboard";
+import InternalOrganizations from "@/pages/internal/InternalOrganizations";
+import InternalOrgDetail from "@/pages/internal/InternalOrgDetail";
+import InternalDonors from "@/pages/internal/InternalDonors";
+import InternalDonorDetail from "@/pages/internal/InternalDonorDetail";
+import InternalDonations from "@/pages/internal/InternalDonations";
+import InternalAuditLog from "@/pages/internal/InternalAuditLog";
+import InternalHealth from "@/pages/internal/InternalHealth";
+import InternalSettings from "@/pages/internal/InternalSettings";
+import AcceptInvite from "@/pages/internal/AcceptInvite";
+import type { InternalAdmin } from "@shared/schema";
+
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, authLoading, isLoading, isOrgUser, isDonor, checkDone } = useUserType();
   const [, setLocation] = useLocation();
+
+  const { error: orgError } = useQuery({
+    queryKey: ['/api/organizations/me'],
+    enabled: !!user && isOrgUser,
+    retry: false,
+  });
+
+  const isSuspended = orgError?.message?.includes('403') && orgError?.message?.includes('ACCOUNT_SUSPENDED');
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -53,6 +76,10 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
   if (!user) {
     return <LoadingPage />;
+  }
+
+  if (isSuspended) {
+    return <SuspendedPage />;
   }
 
   if (checkDone && !isOrgUser && isDonor) {
@@ -159,6 +186,179 @@ function DonorProtectedRoute({ children }: { children: React.ReactNode }) {
   }
 
   return <>{children}</>;
+}
+
+function SuspendedPage() {
+  const { signOut } = useAuth();
+  return (
+    <div className="min-h-screen flex items-center justify-center p-4 bg-background">
+      <div className="max-w-md text-center space-y-4">
+        <div className="w-16 h-16 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center mx-auto">
+          <svg className="w-8 h-8 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+          </svg>
+        </div>
+        <h1 className="text-2xl font-bold" data-testid="text-suspended-title">Cuenta Suspendida</h1>
+        <p className="text-muted-foreground">Tu organización ha sido suspendida. Contacta soporte para más información.</p>
+        <button onClick={signOut} className="text-primary underline text-sm" data-testid="button-suspended-logout">Cerrar sesión</button>
+      </div>
+    </div>
+  );
+}
+
+function InternalProtectedRoute({ children }: { children: (admin: InternalAdmin) => React.ReactNode }) {
+  const { user, loading } = useAuth();
+  const [, setLocation] = useLocation();
+
+  const { data: checkResp, isLoading: checkLoading } = useQuery({
+    queryKey: ['/api/internal/check'],
+    queryFn: () => internalApi.check(),
+    enabled: !!user,
+    retry: false,
+  });
+
+  useEffect(() => {
+    if (!loading && !user) {
+      setLocation('/internal/login');
+    }
+  }, [loading, user, setLocation]);
+
+  useEffect(() => {
+    if (!checkLoading && user && checkResp) {
+      const resp = checkResp as any;
+      if (resp.error || !resp.data?.data?.isInternalAdmin) {
+        setLocation('/internal/login');
+      }
+    }
+  }, [checkLoading, user, checkResp, setLocation]);
+
+  if (loading || checkLoading) return <LoadingPage />;
+  if (!user) return <LoadingPage />;
+
+  const resp = checkResp as any;
+  if (!resp?.data?.data?.isInternalAdmin) return <LoadingPage />;
+
+  const admin: InternalAdmin = resp.data.data.admin;
+  return <>{children(admin)}</>;
+}
+
+function InternalRouter() {
+  const [impersonating, setImpersonating] = useState<{ orgId: string; orgName: string } | null>(null);
+
+  const handleStartImpersonation = useCallback((orgId: string, orgName: string) => {
+    setImpersonating({ orgId, orgName });
+  }, []);
+
+  const handleStopImpersonation = useCallback(async () => {
+    await internalApi.stopImpersonation(impersonating?.orgId);
+    setImpersonating(null);
+  }, [impersonating]);
+
+  return (
+    <Switch>
+      <Route path="/internal/login">
+        <InternalLogin />
+      </Route>
+
+      <Route path="/internal/accept-invite">
+        <AcceptInvite />
+      </Route>
+
+      <Route path="/internal/dashboard">
+        <InternalProtectedRoute>
+          {(admin) => (
+            <InternalShell admin={admin} impersonating={impersonating} onStopImpersonation={handleStopImpersonation}>
+              <InternalDashboard />
+            </InternalShell>
+          )}
+        </InternalProtectedRoute>
+      </Route>
+
+      <Route path="/internal/organizations/:id">
+        <InternalProtectedRoute>
+          {(admin) => (
+            <InternalShell admin={admin} impersonating={impersonating} onStopImpersonation={handleStopImpersonation}>
+              <InternalOrgDetail adminRole={admin.role} onStartImpersonation={handleStartImpersonation} />
+            </InternalShell>
+          )}
+        </InternalProtectedRoute>
+      </Route>
+
+      <Route path="/internal/organizations">
+        <InternalProtectedRoute>
+          {(admin) => (
+            <InternalShell admin={admin} impersonating={impersonating} onStopImpersonation={handleStopImpersonation}>
+              <InternalOrganizations />
+            </InternalShell>
+          )}
+        </InternalProtectedRoute>
+      </Route>
+
+      <Route path="/internal/donors/:id">
+        <InternalProtectedRoute>
+          {(admin) => (
+            <InternalShell admin={admin} impersonating={impersonating} onStopImpersonation={handleStopImpersonation}>
+              <InternalDonorDetail />
+            </InternalShell>
+          )}
+        </InternalProtectedRoute>
+      </Route>
+
+      <Route path="/internal/donors">
+        <InternalProtectedRoute>
+          {(admin) => (
+            <InternalShell admin={admin} impersonating={impersonating} onStopImpersonation={handleStopImpersonation}>
+              <InternalDonors />
+            </InternalShell>
+          )}
+        </InternalProtectedRoute>
+      </Route>
+
+      <Route path="/internal/donations">
+        <InternalProtectedRoute>
+          {(admin) => (
+            <InternalShell admin={admin} impersonating={impersonating} onStopImpersonation={handleStopImpersonation}>
+              <InternalDonations />
+            </InternalShell>
+          )}
+        </InternalProtectedRoute>
+      </Route>
+
+      <Route path="/internal/audit-log">
+        <InternalProtectedRoute>
+          {(admin) => (
+            <InternalShell admin={admin} impersonating={impersonating} onStopImpersonation={handleStopImpersonation}>
+              <InternalAuditLog />
+            </InternalShell>
+          )}
+        </InternalProtectedRoute>
+      </Route>
+
+      <Route path="/internal/health">
+        <InternalProtectedRoute>
+          {(admin) => (
+            <InternalShell admin={admin} impersonating={impersonating} onStopImpersonation={handleStopImpersonation}>
+              <InternalHealth />
+            </InternalShell>
+          )}
+        </InternalProtectedRoute>
+      </Route>
+
+      <Route path="/internal/settings">
+        <InternalProtectedRoute>
+          {(admin) => (
+            <InternalShell admin={admin} impersonating={impersonating} onStopImpersonation={handleStopImpersonation}>
+              <InternalSettings adminRole={admin.role} />
+            </InternalShell>
+          )}
+        </InternalProtectedRoute>
+      </Route>
+
+      <Route>
+        <NotFound />
+      </Route>
+    </Switch>
+  );
 }
 
 function SmartRedirect() {
@@ -283,6 +483,10 @@ function Router() {
         <DonorProtectedRoute>
           <DonorSettings />
         </DonorProtectedRoute>
+      </Route>
+
+      <Route path="/internal/:rest*">
+        <InternalRouter />
       </Route>
 
       <Route component={NotFound} />

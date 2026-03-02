@@ -1,0 +1,195 @@
+Build an Internal Admin Dashboard for Juntos Crecemos (for internal staff only: me + future engineers). This is separate from the non-profit admin dashboard. Stack: Next.js (React + TypeScript) + Tailwind + shadcn/ui frontend, Node.js + Express backend, Supabase (Auth + Postgres). All internal routes live under /internal/*.
+
+1) Internal-only Auth + Roles
+
+Use Supabase Auth for login.
+
+Create table internal_admins:
+
+id uuid pk default gen_random_uuid()
+
+user_id uuid unique references auth.users.id
+
+email text unique not null
+
+role text (SUPER_ADMIN, ADMIN, VIEWER) default ADMIN
+
+status text (ACTIVE, INVITED, DISABLED) default INVITED
+
+created_at timestamptz default now()
+
+Seed the first internal admin:
+
+email = luis@juntoscrecemos.co
+, role=SUPER_ADMIN, status=ACTIVE
+
+Add server middleware for any /internal/* page + /api/internal/* endpoint:
+
+require valid session AND the user exists in internal_admins with status=ACTIVE.
+
+2) Invite Other Internal Admins (with acceptance)
+
+Only SUPER_ADMIN can invite.
+
+UI: “Invite Admin” form (email + role).
+
+Create table internal_admin_invites:
+
+id uuid pk, email, role, token unique, expires_at, accepted_at, created_by, created_at
+
+On invite:
+
+create internal_admins row with status=INVITED (if not exists)
+
+create invite token in internal_admin_invites
+
+email invite link: /internal/accept-invite?token=...
+
+Accept invite flow:
+
+if user not logged in → force login first
+
+validate token (not expired/not accepted)
+
+attach internal_admins.user_id to logged in user, set status=ACTIVE, mark invite accepted, redirect to /internal/dashboard
+
+3) Internal Dashboard (Core Ops)
+
+Create /internal/dashboard with KPI cards + range filters (7d/30d/90d/all):
+
+of organizations signed up
+of donors signed up
+
+total donations count
+
+total donation amount (sum)
+Add charts (simple is fine): donations over time, top orgs by donations.
+
+4) Search + Management Tables
+Organizations table view (/internal/organizations)
+
+Search by name/slug/email/country (whatever exists)
+
+Pagination + sorting
+
+Columns: org name, created date, status, donation count, donation total, “View”
+
+Org detail page: profile, campaigns list, donations list (paginated), distinct donor count
+
+Donors view (/internal/donors)
+
+Search donors (name/email)
+
+Show donor profile + donation history
+
+Donations view (/internal/donations)
+
+Filters: date range, org, campaign, amount range, status
+
+Pagination, export options
+
+5) Recommended Extra Features (implement ALL)
+A) Audit Log (must-have)
+
+Create internal_audit_logs table:
+
+id, actor_user_id, actor_email, action, entity_type, entity_id, metadata jsonb, created_at
+
+Log actions: admin invites, invite accepted, org status changes, impersonation start/stop, exports generated, manual edits.
+
+B) Impersonation Mode (READ-ONLY, SUPER_ADMIN only)
+
+Allow SUPER_ADMIN to “View as Org Admin” for debugging.
+
+This must be read-only (no mutations while impersonating).
+
+Clearly display a banner: “Impersonating {org} (READ-ONLY)” + “Exit impersonation”.
+
+Log impersonation start/stop in internal_audit_logs.
+
+C) Org Status Controls (suspend/restore)
+
+Add status to organizations if not present: (ACTIVE, SUSPENDED)
+
+Internal UI toggle with confirmation modal and reason field.
+
+Suspended orgs cannot login or access their dashboard.
+
+Log all status changes in audit logs.
+
+D) Data Export (CSV + PDF options)
+
+For Organizations/Donations tables add “Export”:
+
+CSV export for operational use
+
+PDF export for reporting (basic formatting is fine)
+
+All exports must respect current filters/search.
+
+Log exports (who exported, what filters, row count) in audit logs.
+
+E) Observability / Health Panel
+
+Create /internal/health showing:
+
+API health check status
+
+DB connectivity status (simple query)
+
+App version/commit (from env var)
+
+Basic error counters if available (or placeholder)
+
+Last successful job/email timestamp if you have it (or placeholder)
+
+6) Internal APIs (protected)
+
+Implement /api/internal/* endpoints:
+
+GET /api/internal/metrics?range=7|30|90|all
+
+GET /api/internal/orgs?search=&page=&pageSize=&sort=
+
+GET /api/internal/orgs/:id (+ donations/campaigns)
+
+GET /api/internal/donors?...
+
+GET /api/internal/donations?...
+
+POST /api/internal/invites
+
+POST /api/internal/invites/accept
+
+POST /api/internal/orgs/:id/status (suspend/restore with reason)
+
+POST /api/internal/impersonation/start + /stop
+
+GET /api/internal/exports/... (returns file)
+
+GET /api/internal/health
+
+7) Security (non-negotiable)
+
+Enforce authorization on the server for every internal route and API.
+
+Keep Supabase service role key server-side only.
+
+Configure RLS so NGO admins can’t read internal_* tables.
+
+Never expose internal admin data to public routes.
+
+Done When
+
+I (luis@juntoscrecemos.co
+) can login and access /internal.
+
+I can search orgs, see KPIs, view donors/donations, export data.
+
+I can invite another internal admin, they can accept, login, and access.
+
+Suspended orgs lose access.
+
+Audit logs capture all critical internal actions.
+
+Impersonation works in read-only mode with clear UI banner.

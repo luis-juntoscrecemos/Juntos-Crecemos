@@ -295,6 +295,87 @@ export interface ApiResponse<T> {
   message?: string;
 }
 
+// ============================================
+// Internal Admin Types
+// ============================================
+
+export interface InternalAdmin {
+  id: string;
+  user_id: string | null;
+  email: string;
+  role: 'SUPER_ADMIN' | 'ADMIN' | 'VIEWER';
+  status: 'ACTIVE' | 'INVITED' | 'DISABLED';
+  created_at: string;
+}
+
+export interface InternalAdminInvite {
+  id: string;
+  email: string;
+  role: string;
+  token: string;
+  expires_at: string;
+  accepted_at: string | null;
+  created_by: string | null;
+  created_at: string;
+}
+
+export interface InternalAuditLog {
+  id: string;
+  actor_user_id: string | null;
+  actor_email: string | null;
+  action: string;
+  entity_type: string | null;
+  entity_id: string | null;
+  metadata: Record<string, any>;
+  created_at: string;
+}
+
+export interface InternalMetrics {
+  organizationsCount: number;
+  donorsCount: number;
+  donationsCount: number;
+  totalRaised: number;
+}
+
+export interface InternalOrgListItem {
+  id: string;
+  name: string;
+  slug: string;
+  email: string;
+  country: string;
+  city: string;
+  status: string;
+  logo_url: string | null;
+  created_at: string;
+  donations_count: number;
+  donations_total: number;
+}
+
+export interface InternalDonorListItem {
+  id: string;
+  email: string;
+  full_name: string | null;
+  created_at: string;
+  donations_count: number;
+  donations_total: number;
+}
+
+export interface InternalDonationListItem {
+  id: string;
+  short_id: string | null;
+  donor_name: string | null;
+  donor_email: string | null;
+  amount_minor: number;
+  currency: string;
+  status: string;
+  is_recurring: boolean;
+  is_anonymous: boolean;
+  paid_at: string | null;
+  created_at: string;
+  organization_name: string | null;
+  campaign_title: string | null;
+}
+
 // Legacy types for compatibility
 export interface User {
   id: string;

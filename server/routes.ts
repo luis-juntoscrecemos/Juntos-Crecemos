@@ -8,6 +8,7 @@ import { customAlphabet } from "nanoid";
 import { sendDonationReceipt } from "./email";
 import sanitizeHtml from "sanitize-html";
 import { ObjectStorageService, ObjectNotFoundError } from "./replit_integrations/object_storage";
+import { registerInternalRoutes } from "./internalRoutes";
 
 const sanitizeDescription = (html: string): string => {
   return sanitizeHtml(html, {
@@ -1886,6 +1887,11 @@ export async function registerRoutes(
       res.status(500).json({ error: 'Error al obtener datos' });
     }
   });
+
+  // ============================================
+  // Internal Admin Routes
+  // ============================================
+  registerInternalRoutes(app);
 
   // ============================================
   // Public Branding Assets (for emails, etc.)
