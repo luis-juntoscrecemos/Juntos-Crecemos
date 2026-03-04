@@ -36,10 +36,23 @@ export function registerInternalRoutes(app: Express): void {
   // Check if current user is an internal admin
   // ============================================
   app.get('/api/internal/check', internalAuthMiddleware, async (req: InternalAuthenticatedRequest, res) => {
+    let hasOrganization = false;
+    if (req.internalAdmin?.email) {
+      const { data: orgMatch } = await supabase
+        .from('organizations')
+        .select('id')
+        .eq('email', req.internalAdmin.email)
+        .limit(1);
+      if (orgMatch && orgMatch.length > 0) {
+        hasOrganization = true;
+      }
+    }
+
     res.json({
       data: {
         isInternalAdmin: true,
         admin: req.internalAdmin,
+        hasOrganization,
       },
     });
   });

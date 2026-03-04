@@ -207,7 +207,7 @@ function SuspendedPage() {
   );
 }
 
-function InternalProtectedRoute({ children }: { children: (admin: InternalAdmin) => React.ReactNode }) {
+function InternalProtectedRoute({ children }: { children: (admin: InternalAdmin, hasOrganization: boolean) => React.ReactNode }) {
   const { user, loading } = useAuth();
   const [, setLocation] = useLocation();
 
@@ -240,7 +240,8 @@ function InternalProtectedRoute({ children }: { children: (admin: InternalAdmin)
   if (!resp?.data?.data?.isInternalAdmin) return <LoadingPage />;
 
   const admin: InternalAdmin = resp.data.data.admin;
-  return <>{children(admin)}</>;
+  const hasOrganization: boolean = !!resp.data.data.hasOrganization;
+  return <>{children(admin, hasOrganization)}</>;
 }
 
 function InternalRouter() {
@@ -267,8 +268,8 @@ function InternalRouter() {
 
       <Route path="/internal/dashboard">
         <InternalProtectedRoute>
-          {(admin) => (
-            <InternalShell admin={admin} impersonating={impersonating} onStopImpersonation={handleStopImpersonation}>
+          {(admin, hasOrganization) => (
+            <InternalShell admin={admin} hasOrganization={hasOrganization} impersonating={impersonating} onStopImpersonation={handleStopImpersonation}>
               <InternalDashboard />
             </InternalShell>
           )}
@@ -277,8 +278,8 @@ function InternalRouter() {
 
       <Route path="/internal/organizaciones-pendientes">
         <InternalProtectedRoute>
-          {(admin) => (
-            <InternalShell admin={admin} impersonating={impersonating} onStopImpersonation={handleStopImpersonation}>
+          {(admin, hasOrganization) => (
+            <InternalShell admin={admin} hasOrganization={hasOrganization} impersonating={impersonating} onStopImpersonation={handleStopImpersonation}>
               <InternalPendingOrgs adminRole={admin.role} />
             </InternalShell>
           )}
@@ -287,8 +288,8 @@ function InternalRouter() {
 
       <Route path="/internal/organizations/:id">
         <InternalProtectedRoute>
-          {(admin) => (
-            <InternalShell admin={admin} impersonating={impersonating} onStopImpersonation={handleStopImpersonation}>
+          {(admin, hasOrganization) => (
+            <InternalShell admin={admin} hasOrganization={hasOrganization} impersonating={impersonating} onStopImpersonation={handleStopImpersonation}>
               <InternalOrgDetail adminRole={admin.role} onStartImpersonation={handleStartImpersonation} />
             </InternalShell>
           )}
@@ -297,8 +298,8 @@ function InternalRouter() {
 
       <Route path="/internal/organizations">
         <InternalProtectedRoute>
-          {(admin) => (
-            <InternalShell admin={admin} impersonating={impersonating} onStopImpersonation={handleStopImpersonation}>
+          {(admin, hasOrganization) => (
+            <InternalShell admin={admin} hasOrganization={hasOrganization} impersonating={impersonating} onStopImpersonation={handleStopImpersonation}>
               <InternalOrganizations />
             </InternalShell>
           )}
@@ -307,8 +308,8 @@ function InternalRouter() {
 
       <Route path="/internal/donors/:id">
         <InternalProtectedRoute>
-          {(admin) => (
-            <InternalShell admin={admin} impersonating={impersonating} onStopImpersonation={handleStopImpersonation}>
+          {(admin, hasOrganization) => (
+            <InternalShell admin={admin} hasOrganization={hasOrganization} impersonating={impersonating} onStopImpersonation={handleStopImpersonation}>
               <InternalDonorDetail />
             </InternalShell>
           )}
@@ -317,8 +318,8 @@ function InternalRouter() {
 
       <Route path="/internal/donors">
         <InternalProtectedRoute>
-          {(admin) => (
-            <InternalShell admin={admin} impersonating={impersonating} onStopImpersonation={handleStopImpersonation}>
+          {(admin, hasOrganization) => (
+            <InternalShell admin={admin} hasOrganization={hasOrganization} impersonating={impersonating} onStopImpersonation={handleStopImpersonation}>
               <InternalDonors />
             </InternalShell>
           )}
@@ -327,8 +328,8 @@ function InternalRouter() {
 
       <Route path="/internal/donations">
         <InternalProtectedRoute>
-          {(admin) => (
-            <InternalShell admin={admin} impersonating={impersonating} onStopImpersonation={handleStopImpersonation}>
+          {(admin, hasOrganization) => (
+            <InternalShell admin={admin} hasOrganization={hasOrganization} impersonating={impersonating} onStopImpersonation={handleStopImpersonation}>
               <InternalDonations />
             </InternalShell>
           )}
@@ -337,8 +338,8 @@ function InternalRouter() {
 
       <Route path="/internal/audit-log">
         <InternalProtectedRoute>
-          {(admin) => (
-            <InternalShell admin={admin} impersonating={impersonating} onStopImpersonation={handleStopImpersonation}>
+          {(admin, hasOrganization) => (
+            <InternalShell admin={admin} hasOrganization={hasOrganization} impersonating={impersonating} onStopImpersonation={handleStopImpersonation}>
               <InternalAuditLog />
             </InternalShell>
           )}
@@ -347,8 +348,8 @@ function InternalRouter() {
 
       <Route path="/internal/health">
         <InternalProtectedRoute>
-          {(admin) => (
-            <InternalShell admin={admin} impersonating={impersonating} onStopImpersonation={handleStopImpersonation}>
+          {(admin, hasOrganization) => (
+            <InternalShell admin={admin} hasOrganization={hasOrganization} impersonating={impersonating} onStopImpersonation={handleStopImpersonation}>
               <InternalHealth />
             </InternalShell>
           )}
@@ -357,8 +358,8 @@ function InternalRouter() {
 
       <Route path="/internal/settings">
         <InternalProtectedRoute>
-          {(admin) => (
-            <InternalShell admin={admin} impersonating={impersonating} onStopImpersonation={handleStopImpersonation}>
+          {(admin, hasOrganization) => (
+            <InternalShell admin={admin} hasOrganization={hasOrganization} impersonating={impersonating} onStopImpersonation={handleStopImpersonation}>
               <InternalSettings adminRole={admin.role} />
             </InternalShell>
           )}

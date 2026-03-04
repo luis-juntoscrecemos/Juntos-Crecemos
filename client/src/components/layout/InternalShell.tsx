@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'wouter';
-import { useQuery } from '@tanstack/react-query';
 import {
   LayoutDashboard,
   Building2,
@@ -42,21 +41,17 @@ const ROLE_LABELS: Record<string, string> = {
 interface InternalShellProps {
   children: React.ReactNode;
   admin?: InternalAdmin | null;
+  hasOrganization?: boolean;
   impersonating?: { orgId: string; orgName: string } | null;
   onStopImpersonation?: () => void;
 }
 
-export function InternalShell({ children, admin, impersonating, onStopImpersonation }: InternalShellProps) {
+export function InternalShell({ children, admin, hasOrganization, impersonating, onStopImpersonation }: InternalShellProps) {
   const [location] = useLocation();
   const { signOut } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  const { data: donorCheckResponse } = useQuery<{ data?: { isOrgUser: boolean } }>({
-    queryKey: ['/api/donor/check'],
-    retry: false,
-    staleTime: 5 * 60 * 1000,
-  });
-  const isOrgUser = !!(donorCheckResponse?.data as any)?.isOrgUser;
+  const isOrgUser = !!hasOrganization;
 
   return (
     <div className="flex h-screen overflow-hidden" data-testid="internal-shell">
