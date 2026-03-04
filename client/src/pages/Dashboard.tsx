@@ -1,10 +1,10 @@
 import { useState, useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { Link } from 'wouter';
 import { 
   TrendingUp, Heart, BarChart3, Megaphone, 
   Plus, Edit, Copy, Check, ExternalLink, 
-  ArrowRight, Calendar, Receipt
+  ArrowRight, Calendar, Receipt, Loader2
 } from 'lucide-react';
 import { Bar, BarChart, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { PageHeader } from '@/components/common/PageHeader';
@@ -125,16 +125,18 @@ export default function Dashboard() {
 
   const POLL_INTERVAL = 15000;
 
-  const { data: overviewRes, isLoading: overviewLoading } = useQuery({
+  const { data: overviewRes, isLoading: overviewLoading, isPlaceholderData: overviewPlaceholder } = useQuery({
     queryKey: ['/api/dashboard/overview', start, end],
     queryFn: () => dashboardApi.getOverview(start, end),
     refetchInterval: POLL_INTERVAL,
+    placeholderData: keepPreviousData,
   });
 
-  const { data: seriesRes, isLoading: seriesLoading } = useQuery({
+  const { data: seriesRes, isLoading: seriesLoading, isPlaceholderData: seriesPlaceholder } = useQuery({
     queryKey: ['/api/dashboard/series', start, end],
     queryFn: () => dashboardApi.getSeries(start, end),
     refetchInterval: POLL_INTERVAL,
+    placeholderData: keepPreviousData,
   });
 
   const { data: campaignsRes, isLoading: campaignsLoading } = useQuery<{ data?: CampaignWithTotals[] }>({
@@ -142,15 +144,17 @@ export default function Dashboard() {
     refetchInterval: POLL_INTERVAL,
   });
 
-  const { data: recentRes, isLoading: recentLoading } = useQuery({
+  const { data: recentRes, isLoading: recentLoading, isPlaceholderData: recentPlaceholder } = useQuery({
     queryKey: ['/api/dashboard/recent-donations', start, end],
     queryFn: () => dashboardApi.getRecentDonations(start, end, 15),
     refetchInterval: POLL_INTERVAL,
+    placeholderData: keepPreviousData,
   });
 
-  const isLoading = overviewLoading || campaignsLoading || seriesLoading || recentLoading;
+  const isInitialLoad = overviewLoading || campaignsLoading || seriesLoading || recentLoading;
+  const isRefetching = overviewPlaceholder || seriesPlaceholder || recentPlaceholder;
 
-  if (isLoading) {
+  if (isInitialLoad) {
     return <LoadingPage />;
   }
 
@@ -179,6 +183,9 @@ export default function Dashboard() {
         description={`Resumen de actividad — últimos ${presetLabels[datePreset]}`}
         actions={
           <div className="flex items-center gap-2 flex-wrap">
+            {isRefetching && (
+              <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" data-testid="icon-refetching" />
+            )}
             <div className="flex rounded-md border" data-testid="date-range-selector">
               {(Object.keys(presetLabels) as DatePreset[]).map((preset) => (
                 <Button
@@ -204,7 +211,7 @@ export default function Dashboard() {
       />
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 transition-opacity duration-200 ${isRefetching ? 'opacity-60' : 'opacity-100'}`}>
         <StatsCard
           title="Monto recaudado"
           value={formatCurrency(overview.totalRaised)}

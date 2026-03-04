@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { Link } from 'wouter';
-import { Heart, Download, Search, FileText, Calendar, X } from 'lucide-react';
+import { Heart, Download, Search, FileText, Calendar, X, Loader2 } from 'lucide-react';
 import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState } from '@/components/common/EmptyState';
 import { LoadingPage } from '@/components/common/LoadingSpinner';
@@ -186,18 +186,20 @@ export default function DonationsPage() {
 
   const hasDateFilter = datePreset !== null || (appliedCustomStart !== '' && appliedCustomEnd !== '');
 
-  const { data: donationsResponse, isLoading: donationsLoading } = useQuery({
+  const { data: donationsResponse, isLoading: donationsLoading, isPlaceholderData: donationsPlaceholder } = useQuery({
     queryKey: ['/api/donations', dateFilterParams],
     queryFn: () => donationsApi.list(dateFilterParams),
+    placeholderData: keepPreviousData,
   });
 
   const { data: campaignsResponse, isLoading: campaignsLoading } = useQuery<{ data?: CampaignWithTotals[] }>({
     queryKey: ['/api/campaigns'],
   });
 
-  const isLoading = donationsLoading || campaignsLoading;
+  const isInitialLoad = donationsLoading || campaignsLoading;
+  const isRefetching = donationsPlaceholder;
 
-  if (isLoading) {
+  if (isInitialLoad) {
     return <LoadingPage />;
   }
 
@@ -316,6 +318,9 @@ export default function DonationsPage() {
             <div className="flex flex-wrap items-center gap-2">
               <Calendar className="w-4 h-4 text-muted-foreground" />
               <span className="text-sm font-medium text-muted-foreground mr-1">Período:</span>
+              {isRefetching && (
+                <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" data-testid="icon-refetching" />
+              )}
               <div className="flex rounded-md border" data-testid="date-range-selector">
                 {validPresets.map((preset) => (
                   <Button
@@ -373,7 +378,7 @@ export default function DonationsPage() {
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className={`grid grid-cols-1 md:grid-cols-3 gap-4 transition-opacity duration-200 ${isRefetching ? 'opacity-60' : 'opacity-100'}`}>
         <Card data-testid="card-total-raised">
           <CardContent className="p-4">
             <div className="text-sm text-muted-foreground">Total recaudado</div>
