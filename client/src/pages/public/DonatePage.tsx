@@ -739,25 +739,43 @@ export default function DonatePage() {
           </div>
 
           <div>
-            <Card className="sticky top-8">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Heart className="w-5 h-5 text-primary" />
-                  Haz tu donación
-                </CardTitle>
-                <CardDescription>
-                  Tu apoyo hace la diferencia
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <DonationForm
-                  campaign={campaign}
-                  organization={organization}
-                  feePercent={processing_fee_percent}
-                  orgSlug={orgSlug}
-                />
-              </CardContent>
-            </Card>
+            {organization.can_receive_donations === false ? (
+              <Card className="sticky top-8">
+                <CardContent className="py-12 text-center">
+                  <div className="w-14 h-14 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center mx-auto mb-4">
+                    <Shield className="w-7 h-7 text-amber-600 dark:text-amber-400" />
+                  </div>
+                  <p className="font-medium text-lg mb-2" data-testid="text-donation-blocked">
+                    {organization.review_status === 'REJECTED'
+                      ? 'Esta organización no está disponible para recibir donaciones en este momento.'
+                      : 'Esta organización aún está en revisión y no puede recibir donaciones por el momento.'}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Por favor, intenta más tarde.
+                  </p>
+                </CardContent>
+              </Card>
+            ) : (
+              <Card className="sticky top-8">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Heart className="w-5 h-5 text-primary" />
+                    Haz tu donación
+                  </CardTitle>
+                  <CardDescription>
+                    Tu apoyo hace la diferencia
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <DonationForm
+                    campaign={campaign}
+                    organization={organization}
+                    feePercent={processing_fee_percent}
+                    orgSlug={orgSlug}
+                  />
+                </CardContent>
+              </Card>
+            )}
           </div>
         </div>
       </main>

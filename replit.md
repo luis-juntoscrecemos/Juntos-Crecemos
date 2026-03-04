@@ -1,227 +1,38 @@
 # Juntos Crecemos - Donation Platform for NGOs
 
 ## Overview
-Juntos Crecemos is a SaaS platform for South American NGOs to accept and manage donations. The platform provides NGO admins with tools to manage organization profiles, create campaigns, view donation analytics, and export donation data. Donors can use a fast, trustworthy, mobile-first donation form.
-
-## Tech Stack
-- **Frontend**: React (Vite) with TypeScript, Tailwind CSS, shadcn/ui components
-- **Backend**: Express.js API with TypeScript
-- **Database & Auth**: Supabase (external - PostgreSQL with Row Level Security)
-- **Routing**: wouter for client-side routing
-- **Forms**: react-hook-form with Zod validation
-- **State**: TanStack React Query for server state
-
-## Architecture
-
-### Security Model
-- Browser connects to Supabase ONLY for authentication (anon key)
-- All application data (organizations, campaigns, donations) flows through Express API
-- Express API uses Supabase service_role key (server-side only)
-- JWT tokens from Supabase Auth are sent with API requests for authorization
-
-### Key Directories
-```
-client/
-├── src/
-│   ├── components/       # Reusable UI components
-│   │   ├── common/       # EmptyState, PageHeader, StatsCard, LoadingSpinner, RichTextEditor, RichTextDisplay, ThemeModeToggle
-│   │   ├── layout/       # AppShell (org), DonorShell (donor), InternalShell (internal admin) with sidebars
-│   │   └── ui/           # shadcn/ui base components
-│   ├── contexts/         # AuthContext for Supabase auth, ThemeContext for dark mode + accent palettes
-│   ├── hooks/            # Custom React hooks
-│   ├── lib/              # API client, donorApi, internalApi, Supabase client, utilities
-│   └── pages/            # Route pages
-│       ├── auth/         # Login, Register (for orgs)
-│       ├── donor/        # DonorDashboard, DonorDonations, DonorFavorites, DonorSettings, DonorLogin
-│       ├── internal/     # InternalLogin, InternalDashboard, InternalOrganizations, InternalOrgDetail, InternalDonors, InternalDonorDetail, InternalDonations, InternalAuditLog, InternalHealth, InternalSettings, AcceptInvite
-│       └── public/       # DonatePage (public donation form)
-server/
-├── middleware/           # Auth middleware (authMiddleware, donorAuthMiddleware, internalAuthMiddleware)
-├── routes.ts             # API routes (org + donor endpoints)
-├── internalRoutes.ts     # Internal admin API routes (/api/internal/*)
-├── internalAudit.ts      # Audit logging helper
-├── supabase.ts           # Supabase server client + helper functions
-└── index.ts              # Express server setup
-shared/
-└── schema.ts             # TypeScript types (includes DonorAccount, Favorite, DonorDashboardStats, InternalAdmin, InternalAdminInvite, InternalAuditLog)
-docs/
-├── supabase-setup.sql    # Initial Supabase setup (storage, orgs RLS)
-├── donor-dashboard-setup.sql  # Donor tables, RLS policies, claim function
-├── internal-admin-migration.sql # Internal admin tables, audit logs, org status column
-├── recurring-migration.sql    # Add recurring donation columns to campaigns
-├── causes-migration.sql       # Add causes column to organizations
-└── accent-theme-migration.sql # Add accent_theme column to organizations
-```
-
-## Database Schema (Supabase)
-Core tables:
-- **organizations**: NGO profiles (name, email, slug, country, city, verified, status, causes[], accent_theme)
-- **organization_users**: Links auth users to organizations (user_id, organization_id, role)
-- **campaigns**: Fundraising campaigns (title, slug, description, goal_amount, is_active, suggested_amounts, image_url, allow_recurring, recurring_intervals, default_recurring_interval)
-- **campaigns_with_totals**: View with raised_minor and donations_count
-- **donations**: Individual donations (amount_minor, currency, status, donor_name, donor_email, is_recurring, is_anonymous, donor_account_id)
-- **donor_accounts**: Donor user accounts linked to auth.users (auth_user_id, email, full_name, email_verified)
-- **favorites**: Donor's favorite organizations (donor_account_id, organization_id)
-- **internal_admins**: Internal staff accounts (user_id, email, role, status)
-- **internal_admin_invites**: Invite tokens for new internal admins (email, role, token, expires_at, accepted_at, created_by)
-- **internal_audit_logs**: Audit trail for internal actions (actor_user_id, actor_email, action, entity_type, entity_id, metadata)
-
-## Environment Variables (Secrets)
-- `SUPABASE_URL`: Supabase project URL
-- `SUPABASE_ANON_KEY`: Public anon key (used by frontend for auth)
-- `SUPABASE_SERVICE_ROLE_KEY`: Service role key (backend only, never exposed)
-- `RESEND_API_KEY`: Resend email service API key (for sending donation receipts)
-- `EMAIL_FROM`: (Optional) Sender address for emails. Default: `Juntos Crecemos <gracias@mail.juntoscrecemos.co>`
-- `EMAIL_REPLY_TO`: (Optional) Reply-to address for emails. Default: `hola@juntoscrecemos.co`
-
-Note: Frontend receives Supabase config via `/api/config` endpoint to avoid needing VITE_ prefixed env vars.
-
-### Resend Email Setup
-The verified sending domain in Resend is `mail.juntoscrecemos.co`. Donation receipt emails are sent from `gracias@mail.juntoscrecemos.co` with reply-to `hola@juntoscrecemos.co` (Google Workspace inbox). These defaults are hardcoded and can be overridden via `EMAIL_FROM` and `EMAIL_REPLY_TO` env vars.
-
-### Email Template
-- Font: Inter (via Google Fonts import) with system fallback stack (-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif)
-- Checkmark icon: Uses table-based centering for email client compatibility (no flexbox)
-- Logo: Juntos Crecemos logo in footer, served from `/branding/juntos-crecemos-logo.png` (object storage public bucket)
-- Logo uploaded to object storage at `public/branding/juntos-crecemos-logo.png`
-
-## API Endpoints
-
-### Protected (requires auth)
-- `GET /api/dashboard/stats` - Dashboard statistics (legacy, all-time)
-- `GET /api/dashboard/overview?start=&end=` - Date-range filtered KPIs (totalRaised, donationsCount, averageTicket, activeCampaigns)
-- `GET /api/dashboard/series?start=&end=` - Chart data: daily aggregation of donations (date, amount, count)
-- `GET /api/dashboard/recent-donations?start=&end=&limit=` - Recent donations with campaign info, date-range filtered
-- `GET /api/organizations/me` - Get current user's organization
-- `PATCH /api/organizations/:id` - Update organization
-- `GET /api/campaigns` - List campaigns
-- `POST /api/campaigns` - Create campaign (multipart form with optional image)
-- `PATCH /api/campaigns/:id` - Update campaign (multipart form with optional image)
-- `DELETE /api/campaigns/:id` - Delete campaign
-- `GET /api/donations?range=7d|30d|90d|ytd&start=&end=&campaign_id=` - List donations with date filtering, returns data + totalCount + totalAmount
-- `GET /api/donations/export` - Export donations as CSV
-- `GET /api/donations/export/pdf?range=&start=&end=&campaign_id=` - Export filtered donations as professional PDF report
-- `GET /api/donations/:id` - Get single donation detail with campaign/org info
-
-### Public (no auth)
-- `GET /api/public/campaigns/:orgSlug/:campaignSlug` - Get public campaign + organization
-- `GET /api/public/organizations/:slug` - Get public organization profile with active campaigns
-- `POST /api/public/donations` - Create donation (for public donation form)
-- `POST /api/public/donation-intents` - Create donation intent + real donation record (status=paid)
-- `GET /api/public/donation-intents/:id` - Get donation intent details with campaign/org info
-- `POST /api/auth/register-org` - Register new organization (multipart form with logo upload)
-- `GET /terminos` - Public Terms & Conditions page
-- `GET /branding/:filename` - Serve public branding assets (logo, etc.) from object storage
-
-### Donor Dashboard (requires donor auth)
-- `GET /api/donor/check` - Check if user has donor account
-- `POST /api/donor/register` - Create donor account and claim existing donations
-- `GET /api/donor/stats` - Donor dashboard statistics
-- `GET /api/donor/donations` - List donor's donations with org/campaign info
-- `GET /api/donor/donations/by-month` - Donations grouped by month (for charts)
-- `GET /api/donor/profile` - Get donor profile
-- `PATCH /api/donor/profile` - Update donor profile (full_name)
-- `GET /api/donor/favorites` - List favorite organizations
-- `POST /api/donor/favorites` - Add favorite organization
-- `DELETE /api/donor/favorites/:organizationId` - Remove favorite
-- `GET /api/donor/favorites/check/:organizationId` - Check if org is favorited
-
-### Internal Admin (requires internal auth)
-- `GET /api/internal/check` - Check if user is internal admin
-- `GET /api/internal/metrics?range=7|30|90|all` - Platform KPI stats
-- `GET /api/internal/metrics/series?range=` - Donations over time chart data
-- `GET /api/internal/metrics/top-orgs?range=&limit=` - Top organizations by donations
-- `GET /api/internal/orgs?search=&page=&pageSize=&sort=&sortDir=` - Paginated organizations
-- `GET /api/internal/orgs/:id` - Organization detail with campaigns, donations, stats
-- `POST /api/internal/orgs/:id/status` - Suspend/restore organization (SUPER_ADMIN)
-- `GET /api/internal/donors?search=&page=&pageSize=` - Paginated donors
-- `GET /api/internal/donors/:id` - Donor detail with donation history
-- `GET /api/internal/donations?dateStart=&dateEnd=&orgId=&status=&page=&pageSize=` - Filtered donations
-- `GET /api/internal/admins` - List internal admins
-- `POST /api/internal/invites` - Create admin invite (SUPER_ADMIN)
-- `POST /api/internal/invites/accept` - Accept invite with token
-- `POST /api/internal/impersonation/start` - Start org impersonation (SUPER_ADMIN)
-- `POST /api/internal/impersonation/stop` - Stop impersonation
-- `GET /api/internal/exports/orgs` - Export organizations CSV
-- `GET /api/internal/exports/donations` - Export donations CSV
-- `GET /api/internal/audit-logs?page=&pageSize=&action=` - Audit log listing
-- `GET /api/internal/health` - System health check
-
-## Running the App
-The app runs via the "Start application" workflow which executes `npm run dev`. This starts both the Express backend and Vite frontend dev server.
-
-## Design System
-- **Primary Color**: Green #16A34A (142 76% 36%) - Brand color for CTAs and links
-- **Primary Hover**: #15803D (142 72% 29%) - Darker green for hover states
-- **Sidebar/Nav**: Navy #0B2D39 (194 69% 13%) - Dark navy for navigation
-- **Accent Color**: Gold #F4B400 (45 100% 48%) - Small highlights only
-- **Success**: Same as primary green
-- **Warning**: #F59E0B (38 92% 50%)
-- **Destructive/Error**: #DC2626 (0 84% 50%)
-- **Typography**: Inter font family
-- **Spacing**: 8px base system
-- **Border Radius**: 8px (--radius: .5rem)
-
-### Color Usage Guidelines
-- Use `bg-primary`, `text-primary` for CTA buttons and links
-- Use `bg-sidebar` for navigation backgrounds (navy)
-- Use `bg-success`, `text-success` for success states
-- Use `bg-warning`, `text-warning` for pending/warning states
-- Use `bg-destructive`, `text-destructive` for errors
-- Use `bg-accent` sparingly for small highlights/badges only
-
-## Localization
-- Primary language: Spanish (es-CO)
-- Currency: Colombian Peso (COP) with locale-aware formatting
-- Future support planned for Portuguese
+Juntos Crecemos is a SaaS platform designed to empower South American NGOs by providing them with a robust system to accept and manage donations. The platform streamlines the donation process for donors through a fast, trustworthy, and mobile-first experience. For NGO administrators, it offers comprehensive tools for managing organizational profiles, creating and overseeing fundraising campaigns, analyzing donation statistics, and exporting crucial donation data. The core vision is to become the leading donation platform for non-profits in South America, fostering growth and transparency for charitable organizations.
 
 ## User Preferences
 - Light mode first design
 - Mobile-first responsive layouts
 - Trust-focused UX for donation flows
 
-## Donor Dashboard Feature
-The platform supports two types of users:
-1. **NGO Admins**: Manage organizations, campaigns, and view donations (routes: /dashboard, /organization, /campaigns, /donations)
-2. **Donors**: View donation history and manage favorites (routes: /donor, /donor/donations, /donor/favorites, /donor/settings)
+## System Architecture
 
-### Donor Flow
-1. Donor makes a donation on public campaign page (/donar/:orgSlug/:campaignSlug)
-2. After successful donation, sees CTA to create donor account
-3. Donor logs in/registers at /donor/login
-4. System creates donor_account and claims all donations matching email
-5. Donor can view history, stats, and manage favorite organizations
+### Core Technologies
+The platform is built with a modern stack including React (Vite) with TypeScript, Tailwind CSS, and shadcn/ui for the frontend. The backend is an Express.js API also written in TypeScript. Supabase handles database operations (PostgreSQL with Row Level Security) and authentication. Client-side routing is managed by `wouter`, form handling by `react-hook-form` with `Zod` validation, and server state management by `TanStack React Query`.
 
-### Account Disambiguation
-- `/api/donor/check` returns `isDonor` and `isOrgUser` flags
-- DonorProtectedRoute shows NoDonorProfile page if user has no donor account
-- Users can be both org admins and donors simultaneously
+### Security Model
+The architecture prioritizes security by having the browser interact with Supabase solely for authentication using an anonymous key. All application data (organizations, campaigns, donations) is routed through the Express API, which leverages a Supabase `service_role` key (server-side only) for secure database access. JWT tokens obtained from Supabase Auth are used to authorize API requests.
 
-### SQL Setup Required
-Run `docs/donor-dashboard-setup.sql` in Supabase Dashboard to create:
-- donor_accounts table
-- favorites table
-- Add donor_account_id column to donations
-- RLS policies for donor access
-- claim_donations_for_donor() function
+### Key Features
+- **NGO Admin Dashboard**: Tools for organization profile management, campaign creation, donation analytics, and data export.
+- **Donor Portal**: Donors can view their donation history, manage favorite organizations, and track their contributions.
+- **Public Donation Form**: A streamlined, mobile-first donation experience for the public.
+- **Internal Admin Panel**: For platform staff to manage organizations, donors, and overall platform health.
+- **Email Notifications**: Automated donation receipts and system emails via Resend.
+- **Design System**: A consistent UI/UX with a defined color palette (Primary Green, Navy for navigation, Gold for accents), Inter font family, 8px spacing system, and 8px border radius.
+- **Localization**: Primarily Spanish (es-CO) with Colombian Peso (COP) currency formatting, with future plans for Portuguese.
 
-Run `docs/short-id-migration.sql` in Supabase Dashboard to add:
-- short_id column to donations and donation_intents tables
+### Technical Implementations
+- **Modular Directory Structure**: Separated `client/`, `server/`, and `shared/` directories for clear code organization.
+- **Auth and Theming Contexts**: Global contexts for managing user authentication and theme preferences.
+- **API Endpoints**: A comprehensive set of RESTful API endpoints categorized by access level (protected, public, donor, internal admin) for various functionalities.
+- **Object Storage**: For branding assets like logos.
+- **Dynamic Configuration**: Frontend receives Supabase configuration via an API endpoint to enhance security and flexibility.
+- **Registration Flow**: New NGO registrations automatically create a default campaign, and their status requires internal admin review.
 
-Run `docs/recurring-migration.sql` in Supabase Dashboard to add:
-- allow_recurring, recurring_intervals, default_recurring_interval columns to campaigns table
-- These columns are optional; the app gracefully degrades if they don't exist
-
-Run `docs/causes-migration.sql` in Supabase Dashboard to add:
-- causes text[] column to organizations table
-- Optional; the app gracefully degrades if it doesn't exist
-
-Run `docs/accent-theme-migration.sql` in Supabase Dashboard to add:
-- accent_theme column to organizations table
-- Optional; defaults to 'classic' if it doesn't exist
-
-### Registration Behavior
-- New org registration automatically creates a default "Donación general" campaign
-- Campaign slug format: donacion-general
-- Website field accepts any text (no https:// required)
-- Org page auto-prepends https:// for display links when missing
+## External Dependencies
+- **Supabase**: For PostgreSQL database, authentication, and object storage.
+- **Resend**: Email service for sending transactional emails (e.g., donation receipts).

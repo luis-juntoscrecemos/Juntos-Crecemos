@@ -56,6 +56,16 @@ export const internalApi = {
       body: JSON.stringify({ status, reason }),
     }),
 
+  getPendingOrgs: (params: Record<string, any> = {}) => {
+    const qs = new URLSearchParams(params).toString();
+    return internalFetch(`/pending-orgs?${qs}`);
+  },
+  reviewOrg: (id: string, action: 'APPROVED' | 'REJECTED', review_notes?: string) =>
+    internalFetch(`/orgs/${id}/review`, {
+      method: 'POST',
+      body: JSON.stringify({ action, review_notes }),
+    }),
+
   getDonors: (params: Record<string, any> = {}) => {
     const qs = new URLSearchParams(params).toString();
     return internalFetch(`/donors?${qs}`);

@@ -43,6 +43,7 @@ import InternalDonations from "@/pages/internal/InternalDonations";
 import InternalAuditLog from "@/pages/internal/InternalAuditLog";
 import InternalHealth from "@/pages/internal/InternalHealth";
 import InternalSettings from "@/pages/internal/InternalSettings";
+import InternalPendingOrgs from "@/pages/internal/InternalPendingOrgs";
 import AcceptInvite from "@/pages/internal/AcceptInvite";
 import type { InternalAdmin } from "@shared/schema";
 
@@ -269,6 +270,16 @@ function InternalRouter() {
           {(admin) => (
             <InternalShell admin={admin} impersonating={impersonating} onStopImpersonation={handleStopImpersonation}>
               <InternalDashboard />
+            </InternalShell>
+          )}
+        </InternalProtectedRoute>
+      </Route>
+
+      <Route path="/internal/organizaciones-pendientes">
+        <InternalProtectedRoute>
+          {(admin) => (
+            <InternalShell admin={admin} impersonating={impersonating} onStopImpersonation={handleStopImpersonation}>
+              <InternalPendingOrgs adminRole={admin.role} />
             </InternalShell>
           )}
         </InternalProtectedRoute>

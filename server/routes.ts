@@ -187,8 +187,10 @@ export async function registerRoutes(
           slug,
           status: 'active',
           verified: false,
-          country: 'Colombia', // Default
-          city: 'Bogotá', // Default
+          country: 'Colombia',
+          city: 'Bogotá',
+          review_status: 'PENDING',
+          can_receive_donations: false,
         })
         .select()
         .single();
@@ -1215,12 +1217,11 @@ export async function registerRoutes(
     try {
       const { orgSlug, campaignSlug } = req.params;
 
-      // Get organization by slug
       const { data: org, error: orgError } = await supabase
         .from('organizations')
         .select('*')
         .eq('slug', orgSlug)
-        .eq('status', 'active')
+        .in('status', ['active'])
         .single();
 
       if (orgError || !org) {
@@ -1286,6 +1287,19 @@ export async function registerRoutes(
         return res.status(400).json({ error: 'Campaña no válida' });
       }
 
+      const { data: donationOrg } = await supabase
+        .from('organizations')
+        .select('can_receive_donations, review_status')
+        .eq('id', campaign.org_id)
+        .single();
+
+      if (!donationOrg?.can_receive_donations) {
+        const msg = donationOrg?.review_status === 'REJECTED'
+          ? 'Esta organización no está disponible para recibir donaciones en este momento.'
+          : 'Esta organización aún está en revisión y no puede recibir donaciones por el momento.';
+        return res.status(403).json({ error: msg });
+      }
+
       // Create donation with pending status (payment integration would complete it)
       const { data, error } = await supabase
         .from('donations')
@@ -1347,13 +1361,20 @@ export async function registerRoutes(
 
       const { data: org, error: orgError } = await supabase
         .from('organizations')
-        .select('id, name')
+        .select('id, name, can_receive_donations, review_status')
         .eq('slug', org_slug)
         .eq('status', 'active')
         .single();
 
       if (orgError || !org) {
         return res.status(404).json({ error: 'Organización no encontrada' });
+      }
+
+      if (!org.can_receive_donations) {
+        const msg = org.review_status === 'REJECTED'
+          ? 'Esta organización no está disponible para recibir donaciones en este momento.'
+          : 'Esta organización aún está en revisión y no puede recibir donaciones por el momento.';
+        return res.status(403).json({ error: msg });
       }
 
       const { data: campaign, error: campaignError } = await supabase

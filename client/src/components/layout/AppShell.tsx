@@ -199,12 +199,32 @@ export function AppShell({ children }: AppShellProps) {
     "--sidebar-width-icon": "3rem",
   } as React.CSSProperties;
 
+  const isPending = organization?.review_status === 'PENDING';
+
   return (
     <SidebarProvider style={sidebarStyle}>
       <div className="flex h-screen w-full">
         <AppSidebar organization={organization} />
         <div className="flex flex-col flex-1 overflow-hidden">
           <TopBar organization={organization} />
+          {isPending && (
+            <div className="bg-amber-50 dark:bg-amber-950/30 border-b border-amber-200 dark:border-amber-800 px-4 py-3" data-testid="banner-pending-review">
+              <div className="max-w-6xl mx-auto flex items-start gap-3">
+                <div className="w-6 h-6 rounded-full bg-amber-100 dark:bg-amber-900/50 flex items-center justify-center shrink-0 mt-0.5">
+                  <svg className="w-4 h-4 text-amber-600 dark:text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4.5c-.77-.833-2.694-.833-3.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                  </svg>
+                </div>
+                <div>
+                  <p className="font-semibold text-amber-800 dark:text-amber-300 text-sm" data-testid="text-pending-title">Tu organización está bajo revisión</p>
+                  <p className="text-sm text-amber-700 dark:text-amber-400 mt-0.5">
+                    Nuestro equipo está revisando tu información. Podrás recibir donaciones tan pronto como finalice la revisión. Si tienes preguntas, escríbenos a:{' '}
+                    <a href="mailto:info@juntoscrecemos.co" className="underline font-medium">info@juntoscrecemos.co</a>
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
           <main className="flex-1 overflow-auto p-6 bg-background">
             <div className="max-w-6xl mx-auto">
               {children}

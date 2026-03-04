@@ -192,3 +192,88 @@ export async function sendDonationReceipt(data: DonationReceiptData): Promise<{ 
     return { success: false, error: err.message || 'Unknown email error' };
   }
 }
+
+interface OrgReviewEmailData {
+  orgEmail: string;
+  orgName: string;
+  action: 'APPROVED' | 'REJECTED';
+}
+
+export async function sendOrgReviewEmail(data: OrgReviewEmailData): Promise<{ success: boolean; error?: string }> {
+  try {
+    if (!process.env.RESEND_API_KEY) {
+      console.warn('[Email] RESEND_API_KEY not configured, skipping review email');
+      return { success: false, error: 'Email service not configured' };
+    }
+
+    const safeOrgName = escapeHtml(data.orgName);
+    const fromAddress = process.env.EMAIL_FROM || 'Juntos Crecemos <gracias@mail.juntoscrecemos.co>';
+    const replyToAddress = process.env.EMAIL_REPLY_TO || 'hola@juntoscrecemos.co';
+
+    const isApproved = data.action === 'APPROVED';
+
+    const subject = isApproved
+      ? 'Tu organización fue aprobada en Juntos Crecemos'
+      : 'Actualización sobre la revisión de tu organización';
+
+    const bodyText = isApproved
+      ? `¡Buenas noticias! Tu organización <strong>${safeOrgName}</strong> ya fue aprobada y ahora puede recibir donaciones.`
+      : `Hemos revisado tu registro y por el momento no podemos aprobar tu organización.`;
+
+    const htmlContent = `
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+  </style>
+</head>
+<body style="margin:0;padding:0;background-color:#f4f4f5;font-family:${FONT_STACK};">
+  <div style="max-width:560px;margin:0 auto;padding:32px 16px;">
+    <div style="background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #e4e4e7;">
+      <div style="background:${isApproved ? '#16A34A' : '#DC2626'};padding:32px 24px;text-align:center;">
+        <h1 style="color:#ffffff;font-size:22px;margin:0 0 4px;font-family:${FONT_STACK};">${subject}</h1>
+      </div>
+      <div style="padding:24px;">
+        <p style="color:#18181b;font-size:15px;line-height:1.6;margin:0 0 16px;font-family:${FONT_STACK};">
+          Hola,
+        </p>
+        <p style="color:#18181b;font-size:15px;line-height:1.6;margin:0 0 16px;font-family:${FONT_STACK};">
+          ${bodyText}
+        </p>
+        <p style="color:#18181b;font-size:15px;line-height:1.6;margin:0;font-family:${FONT_STACK};">
+          Si necesitas ayuda, contáctanos en <a href="mailto:info@juntoscrecemos.co" style="color:#16A34A;">info@juntoscrecemos.co</a>
+        </p>
+      </div>
+      <div style="background:#f4f4f5;padding:16px 24px;text-align:center;">
+        <p style="color:#71717a;font-size:12px;margin:0;font-family:${FONT_STACK};">
+          Juntos Crecemos - Plataforma de Donaciones
+        </p>
+      </div>
+    </div>
+  </div>
+</body>
+</html>`;
+
+    const { error } = await resend.emails.send({
+      from: fromAddress,
+      replyTo: replyToAddress,
+      to: data.orgEmail,
+      subject,
+      html: htmlContent,
+    });
+
+    if (error) {
+      console.error('[Email] Resend API error (review):', JSON.stringify(error));
+      return { success: false, error: error.message };
+    }
+
+    console.log(`[Email] Review notification sent to ${data.orgEmail} (${data.action})`);
+    return { success: true };
+  } catch (err: any) {
+    console.error('[Email] Unexpected error (review):', err?.message || err);
+    return { success: false, error: err.message || 'Unknown email error' };
+  }
+}

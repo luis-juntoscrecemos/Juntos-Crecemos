@@ -20,6 +20,11 @@ export interface Organization {
   status: string;
   causes: string[] | null;
   accent_theme: string | null;
+  review_status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  reviewed_by: string | null;
+  reviewed_at: string | null;
+  review_notes: string | null;
+  can_receive_donations: boolean;
   created_at: string;
   updated_at: string;
 }

@@ -289,6 +289,107 @@ export function registerInternalRoutes(app: Express): void {
   });
 
   // ============================================
+  // Pending Organizations Review
+  // ============================================
+  app.get('/api/internal/pending-orgs', internalAuthMiddleware, async (req: InternalAuthenticatedRequest, res) => {
+    try {
+      const search = (req.query.search as string) || '';
+      const page = parseInt(req.query.page as string) || 1;
+      const pageSize = Math.min(parseInt(req.query.pageSize as string) || 20, 100);
+      const offset = (page - 1) * pageSize;
+
+      let query = supabase
+        .from('organizations')
+        .select('id, name, slug, email, country, city, status, logo_url, created_at, review_status, review_notes', { count: 'exact' })
+        .eq('review_status', 'PENDING');
+
+      if (search) {
+        query = query.or(`name.ilike.%${search}%,email.ilike.%${search}%`);
+      }
+
+      query = query.order('created_at', { ascending: true }).range(offset, offset + pageSize - 1);
+
+      const { data: orgs, count, error } = await query;
+      if (error) throw error;
+
+      res.json({ data: orgs || [], total: count || 0 });
+    } catch (error) {
+      console.error('Internal pending orgs error:', error);
+      res.status(500).json({ error: 'Error al obtener organizaciones pendientes' });
+    }
+  });
+
+  app.post('/api/internal/orgs/:id/review', internalAuthMiddleware, requireRole('SUPER_ADMIN', 'ADMIN'), async (req: InternalAuthenticatedRequest, res) => {
+    try {
+      const { id } = req.params;
+      const { action, review_notes } = req.body;
+
+      if (!['APPROVED', 'REJECTED'].includes(action)) {
+        return res.status(400).json({ error: 'Acción inválida. Debe ser APPROVED o REJECTED.' });
+      }
+
+      if (action === 'REJECTED' && (!review_notes || review_notes.trim().length === 0)) {
+        return res.status(400).json({ error: 'Debes proporcionar una razón para rechazar la organización.' });
+      }
+
+      const { data: org, error: orgError } = await supabase
+        .from('organizations')
+        .select('id, name, email, review_status')
+        .eq('id', id)
+        .single();
+
+      if (orgError || !org) {
+        return res.status(404).json({ error: 'Organización no encontrada' });
+      }
+
+      const updateData: Record<string, any> = {
+        review_status: action,
+        reviewed_by: req.userId,
+        reviewed_at: new Date().toISOString(),
+        review_notes: review_notes?.trim() || null,
+        can_receive_donations: action === 'APPROVED',
+      };
+
+      const { error: updateError } = await supabase
+        .from('organizations')
+        .update(updateData)
+        .eq('id', id);
+
+      if (updateError) throw updateError;
+
+      const auditAction = action === 'APPROVED' ? 'ORG_REVIEW_APPROVED' : 'ORG_REVIEW_REJECTED';
+      await logAuditEvent(
+        req.userId!,
+        req.userEmail!,
+        auditAction,
+        'organization',
+        id,
+        { orgName: org.name, review_notes: review_notes?.trim() || null }
+      );
+
+      try {
+        const { sendOrgReviewEmail } = await import('./email');
+        await sendOrgReviewEmail({
+          orgEmail: org.email,
+          orgName: org.name,
+          action,
+        });
+      } catch (emailErr) {
+        console.error('[Email] Failed to send review notification:', emailErr);
+      }
+
+      res.json({
+        message: action === 'APPROVED'
+          ? 'Organización aprobada exitosamente'
+          : 'Organización rechazada',
+      });
+    } catch (error) {
+      console.error('Internal org review error:', error);
+      res.status(500).json({ error: 'Error al revisar la organización' });
+    }
+  });
+
+  // ============================================
   // Donors
   // ============================================
   app.get('/api/internal/donors', internalAuthMiddleware, async (req: InternalAuthenticatedRequest, res) => {

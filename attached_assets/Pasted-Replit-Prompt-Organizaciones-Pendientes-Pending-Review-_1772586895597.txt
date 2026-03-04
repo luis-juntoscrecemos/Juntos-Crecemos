@@ -1,0 +1,177 @@
+Replit Prompt: “Organizaciones Pendientes” + Pending Review Flow (Spanish)
+
+Add a review/approval workflow for non-profit organizations in Juntos Crecemos.
+
+Goal
+
+Some organizations can complete signup but must remain PENDING until an internal admin reviews and approves them. While pending:
+
+The org can log in and use their dashboard, but cannot receive donations
+
+The org sees a Spanish banner explaining they are under review and how to contact support
+
+Internal admins get a new sidebar option: “Organizaciones Pendientes” to review/approve orgs.
+
+1) Database changes
+
+In the organizations table (or equivalent), add:
+
+review_status text NOT NULL default 'PENDING'
+
+allowed values: PENDING, APPROVED, REJECTED
+
+reviewed_by uuid NULL (references internal_admins.user_id or auth.users.id)
+
+reviewed_at timestamptz NULL
+
+review_notes text NULL (internal-only)
+
+can_receive_donations boolean NOT NULL default false
+
+Set to true only when approved (or derive from review_status='APPROVED')
+
+When an organization finishes signup, ensure it lands in:
+
+review_status = 'PENDING'
+
+can_receive_donations = false
+
+2) Internal Admin UI: “Organizaciones Pendientes”
+
+Add a new internal admin navigation item:
+
+Label: Organizaciones Pendientes
+
+Route: /internal/organizaciones-pendientes
+
+On this page show a table listing only organizations where review_status='PENDING'.
+
+Table columns (minimum):
+
+Nombre de la organización
+
+Email de contacto (if available)
+
+País/Ciudad (if available)
+
+Fecha de registro (created_at)
+
+Botón “Revisar”
+
+Search + filters:
+
+Search by org name/email
+
+Sort by oldest pending first
+
+Clicking “Revisar” opens a detail view:
+
+org profile summary
+
+submitted fields
+
+documents/links (if you have them)
+
+internal notes textarea (review_notes)
+
+actions:
+
+Aprobar organización
+
+Rechazar organización (requires reason)
+
+On Approve:
+
+set review_status='APPROVED'
+
+set can_receive_donations=true
+
+set reviewed_by, reviewed_at=now()
+
+save review_notes if provided
+
+On Reject:
+
+set review_status='REJECTED'
+
+set can_receive_donations=false
+
+set reviewed_by, reviewed_at=now()
+
+require a rejection reason in review_notes
+
+Permissions:
+
+Only internal admins with role SUPER_ADMIN or ADMIN can approve/reject.
+
+VIEWER can only view.
+
+Audit logging (if you implemented it already):
+
+Log “ORG_REVIEW_APPROVED” / “ORG_REVIEW_REJECTED” with org id + notes.
+
+3) Org Dashboard: Pending Banner (Spanish)
+
+When an organization is logged in and review_status='PENDING':
+
+Show a persistent banner at the top of the org dashboard (and any relevant pages).
+
+Spanish copy (exact text):
+
+Título: Tu organización está bajo revisión
+Mensaje: Nuestro equipo está revisando tu información. Podrás recibir donaciones tan pronto como finalice la revisión. Si tienes preguntas, escríbenos a: info@juntoscrecemos.co
+
+Banner style:
+
+visually noticeable (warning/info style)
+
+do not block the whole UI; just inform
+
+include mailto link for info@juntoscrecemos.co
+
+4) Donation Blocking Logic
+
+If review_status != 'APPROVED' (or can_receive_donations=false):
+
+Block donation actions everywhere:
+
+Public donation route /campañas/[slug]/donar must not allow payment/submit for pending/rejected orgs
+
+Any donation API endpoint must check org status server-side before creating/processing a donation
+
+If blocked, show Spanish message:
+
+Esta organización aún está en revisión y no puede recibir donaciones por el momento.
+
+If review_status='REJECTED' (optional but recommended):
+
+show a Spanish message for donors (simple, non-detailed):
+Esta organización no está disponible para recibir donaciones en este momento.
+
+5) Optional: Notify org by email after review (Recommended)
+
+When approved or rejected, send an email to the org’s contact email.
+
+Approved subject (Spanish):
+Tu organización fue aprobada en Juntos Crecemos
+
+Approved body (Spanish):
+¡Buenas noticias! Tu organización ya fue aprobada y ahora puede recibir donaciones. Si necesitas ayuda, contáctanos en info@juntoscrecemos.co
+
+Rejected subject (Spanish):
+Actualización sobre la revisión de tu organización
+
+Rejected body (Spanish):
+Hemos revisado tu registro y por el momento no podemos aprobar tu organización. Si deseas más información, contáctanos en info@juntoscrecemos.co
+
+(Log these sends in audit logs if available.)
+
+6) Definition of Done
+
+Internal admin can open “Organizaciones Pendientes” and approve/reject orgs.
+
+Pending orgs see the Spanish banner in their dashboard until approved.
+
+Donations are server-side blocked for pending/rejected orgs.
+
+Approved orgs can receive donations immediately after approval.

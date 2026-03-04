@@ -12,6 +12,7 @@ import {
   Menu,
   X,
   AlertTriangle,
+  ClipboardCheck,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -21,6 +22,7 @@ import type { InternalAdmin } from '@shared/schema';
 
 const navItems = [
   { title: 'Panel', href: '/internal/dashboard', icon: LayoutDashboard },
+  { title: 'Org. Pendientes', href: '/internal/organizaciones-pendientes', icon: ClipboardCheck },
   { title: 'Organizaciones', href: '/internal/organizations', icon: Building2 },
   { title: 'Donantes', href: '/internal/donors', icon: Users },
   { title: 'Donaciones', href: '/internal/donations', icon: Heart },
