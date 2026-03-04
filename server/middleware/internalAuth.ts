@@ -29,7 +29,7 @@ export async function internalAuthMiddleware(
   req.userId = user.userId;
   req.userEmail = user.email;
 
-  const { data: admin, error } = await supabase
+  let { data: admin, error } = await supabase
     .from('internal_admins')
     .select('*')
     .eq('user_id', user.userId)
@@ -37,7 +37,25 @@ export async function internalAuthMiddleware(
     .single();
 
   if (error || !admin) {
-    return res.status(403).json({ error: 'No tienes acceso al panel interno' });
+    const { data: adminByEmail, error: emailError } = await supabase
+      .from('internal_admins')
+      .select('*')
+      .eq('email', user.email)
+      .eq('status', 'ACTIVE')
+      .single();
+
+    if (emailError || !adminByEmail) {
+      return res.status(403).json({ error: 'No tienes acceso al panel interno' });
+    }
+
+    if (!adminByEmail.user_id) {
+      await supabase
+        .from('internal_admins')
+        .update({ user_id: user.userId })
+        .eq('id', adminByEmail.id);
+    }
+
+    admin = adminByEmail;
   }
 
   req.internalAdmin = admin as InternalAdmin;

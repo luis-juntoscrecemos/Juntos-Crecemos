@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useLocation } from 'wouter';
 import { Shield } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -7,14 +7,26 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { internalApi } from '@/lib/internalApi';
 
 export default function InternalLogin() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const { signIn } = useAuth();
+  const { signIn, user, loading: authLoading } = useAuth();
   const { toast } = useToast();
   const [, setLocation] = useLocation();
+
+  useEffect(() => {
+    if (!authLoading && user) {
+      internalApi.check().then((result) => {
+        const resp = result as any;
+        if (resp?.data?.data?.isInternalAdmin) {
+          setLocation('/internal/dashboard');
+        }
+      });
+    }
+  }, [authLoading, user, setLocation]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
