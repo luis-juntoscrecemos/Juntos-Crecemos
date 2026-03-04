@@ -159,6 +159,7 @@ export default function InternalSettings({ adminRole }: InternalSettingsProps) {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="SUPER_ADMIN">Super Administrador</SelectItem>
                   <SelectItem value="ADMIN">Administrador</SelectItem>
                   <SelectItem value="VIEWER">Visualizador</SelectItem>
                 </SelectContent>
