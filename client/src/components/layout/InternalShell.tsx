@@ -33,9 +33,9 @@ const navItems = [
 ];
 
 const ROLE_LABELS: Record<string, string> = {
-  SUPER_ADMIN: 'Super Admin',
-  ADMIN: 'Admin',
-  VIEWER: 'Viewer',
+  SUPER_ADMIN: 'Super Administrador',
+  ADMIN: 'Administrador',
+  VIEWER: 'Visualizador',
 };
 
 interface InternalShellProps {

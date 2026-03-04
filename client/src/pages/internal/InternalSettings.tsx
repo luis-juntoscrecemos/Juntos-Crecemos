@@ -15,9 +15,9 @@ import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { queryClient } from '@/lib/queryClient';
 
 const ROLE_LABELS: Record<string, string> = {
-  SUPER_ADMIN: 'Super Admin',
-  ADMIN: 'Admin',
-  VIEWER: 'Viewer',
+  SUPER_ADMIN: 'Super Administrador',
+  ADMIN: 'Administrador',
+  VIEWER: 'Visualizador',
 };
 
 const ROLE_COLORS: Record<string, string> = {
@@ -159,8 +159,8 @@ export default function InternalSettings({ adminRole }: InternalSettingsProps) {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="ADMIN">Admin</SelectItem>
-                  <SelectItem value="VIEWER">Viewer</SelectItem>
+                  <SelectItem value="ADMIN">Administrador</SelectItem>
+                  <SelectItem value="VIEWER">Visualizador</SelectItem>
                 </SelectContent>
               </Select>
             </div>

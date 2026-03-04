@@ -84,6 +84,19 @@ export const internalApi = {
       method: 'POST',
       body: JSON.stringify({ email, role }),
     }),
+  verifyInvite: async (token: string): Promise<{ data?: { email: string; role: string }; error?: string }> => {
+    try {
+      const response = await fetch(`/api/internal/invites/verify?token=${encodeURIComponent(token)}`);
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        return { error: errorData.error || `Error ${response.status}` };
+      }
+      const json = await response.json();
+      return { data: json };
+    } catch (err: any) {
+      return { error: err.message || 'Error de red' };
+    }
+  },
   acceptInvite: (token: string) =>
     internalFetch('/invites/accept', {
       method: 'POST',

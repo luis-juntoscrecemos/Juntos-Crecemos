@@ -2,7 +2,7 @@ import type { Express } from 'express';
 import { supabase } from './supabase';
 import { internalAuthMiddleware, requireRole, type InternalAuthenticatedRequest } from './middleware/internalAuth';
 import { logAuditEvent } from './internalAudit';
-import { sendDonationReceipt } from './email';
+import { sendDonationReceipt, sendAdminInviteEmail } from './email';
 import { customAlphabet } from 'nanoid';
 import crypto from 'crypto';
 
@@ -590,6 +590,11 @@ export function registerInternalRoutes(app: Express): void {
           role,
           status: 'INVITED',
         });
+      } else {
+        await supabase
+          .from('internal_admins')
+          .update({ role, status: 'INVITED' })
+          .eq('id', existing.id);
       }
 
       const token = nanoidToken();
@@ -620,6 +625,19 @@ export function registerInternalRoutes(app: Express): void {
 
       const inviteLink = `${appUrl}/internal/accept-invite?token=${token}`;
 
+      sendAdminInviteEmail({
+        recipientEmail: email,
+        inviterEmail: req.userEmail!,
+        role,
+        inviteLink,
+      }).then((result) => {
+        if (result.success) {
+          console.log(`[Internal] Invite email sent to ${email}`);
+        } else {
+          console.error(`[Internal] Failed to send invite email to ${email}:`, result.error);
+        }
+      });
+
       res.json({
         message: 'Invitación creada exitosamente',
         inviteLink,
@@ -627,6 +645,38 @@ export function registerInternalRoutes(app: Express): void {
     } catch (error) {
       console.error('Internal invite error:', error);
       res.status(500).json({ error: 'Error al crear invitación' });
+    }
+  });
+
+  app.get('/api/internal/invites/verify', async (req, res) => {
+    try {
+      const token = req.query.token as string;
+      if (!token) {
+        return res.status(400).json({ error: 'Token requerido' });
+      }
+
+      const { data: invite, error: inviteError } = await supabase
+        .from('internal_admin_invites')
+        .select('email, role, expires_at, accepted_at')
+        .eq('token', token)
+        .single();
+
+      if (inviteError || !invite) {
+        return res.status(404).json({ error: 'Invitación no encontrada' });
+      }
+
+      if (invite.accepted_at) {
+        return res.status(400).json({ error: 'Esta invitación ya fue aceptada' });
+      }
+
+      if (new Date(invite.expires_at) < new Date()) {
+        return res.status(400).json({ error: 'Esta invitación ha expirado' });
+      }
+
+      res.json({ email: invite.email, role: invite.role });
+    } catch (error) {
+      console.error('Verify invite error:', error);
+      res.status(500).json({ error: 'Error al verificar invitación' });
     }
   });
 
@@ -671,7 +721,7 @@ export function registerInternalRoutes(app: Express): void {
 
       const { error: updateAdminError } = await supabase
         .from('internal_admins')
-        .update({ user_id: user.userId, status: 'ACTIVE' })
+        .update({ user_id: user.userId, status: 'ACTIVE', role: invite.role })
         .eq('email', invite.email);
 
       if (updateAdminError) throw updateAdminError;

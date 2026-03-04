@@ -303,6 +303,112 @@ export async function sendPendingOrgNotification(data: PendingOrgNotificationDat
   }
 }
 
+interface AdminInviteEmailData {
+  recipientEmail: string;
+  inviterEmail: string;
+  role: string;
+  inviteLink: string;
+}
+
+const ROLE_LABELS_ES: Record<string, string> = {
+  SUPER_ADMIN: 'Super Administrador',
+  ADMIN: 'Administrador',
+  VIEWER: 'Visualizador',
+};
+
+export async function sendAdminInviteEmail(data: AdminInviteEmailData): Promise<{ success: boolean; error?: string }> {
+  try {
+    if (!process.env.RESEND_API_KEY) {
+      console.warn('[Email] RESEND_API_KEY not configured, skipping admin invite email');
+      return { success: false, error: 'Email service not configured' };
+    }
+
+    console.log(`[Email] Sending admin invite to ${data.recipientEmail}`);
+
+    const safeEmail = escapeHtml(data.recipientEmail);
+    const safeInviter = escapeHtml(data.inviterEmail);
+    const roleLabel = ROLE_LABELS_ES[data.role] || data.role;
+    const fromAddress = process.env.EMAIL_FROM || 'Juntos Crecemos <gracias@mail.juntoscrecemos.co>';
+    const replyToAddress = process.env.EMAIL_REPLY_TO || 'hola@juntoscrecemos.co';
+
+    const appUrl = (process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : process.env.REPLIT_DEPLOYMENT_URL ? `https://${process.env.REPLIT_DEPLOYMENT_URL}` : 'https://juntoscrecemos.co');
+    const logoUrl = `${appUrl}/branding/juntos-crecemos-logo.png`;
+
+    const htmlContent = `
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+  </style>
+</head>
+<body style="margin:0;padding:0;background-color:#f4f4f5;font-family:${FONT_STACK};">
+  <div style="max-width:560px;margin:0 auto;padding:32px 16px;">
+    <div style="background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #e4e4e7;">
+      <div style="background:#1e293b;padding:32px 24px;text-align:center;">
+        <img src="${logoUrl}" alt="Juntos Crecemos" style="height:40px;margin-bottom:16px;" />
+        <h1 style="color:#ffffff;font-size:22px;margin:0 0 4px;font-family:${FONT_STACK};">Invitaci\u00f3n al Panel Interno</h1>
+        <p style="color:rgba(255,255,255,0.7);font-size:14px;margin:0;font-family:${FONT_STACK};">Juntos Crecemos</p>
+      </div>
+      <div style="padding:24px;">
+        <p style="color:#18181b;font-size:15px;line-height:1.6;margin:0 0 16px;font-family:${FONT_STACK};">
+          Hola,
+        </p>
+        <p style="color:#18181b;font-size:15px;line-height:1.6;margin:0 0 20px;font-family:${FONT_STACK};">
+          <strong>${safeInviter}</strong> te ha invitado a unirte al panel de administraci\u00f3n interno de Juntos Crecemos como <strong>${roleLabel}</strong>.
+        </p>
+        <table style="width:100%;border-collapse:collapse;margin-bottom:20px;">
+          <tr>
+            <td style="padding:8px 12px;background:#f4f4f5;border-radius:6px 6px 0 0;font-size:13px;color:#71717a;font-family:${FONT_STACK};">Tu correo</td>
+            <td style="padding:8px 12px;background:#f4f4f5;border-radius:6px 6px 0 0;font-size:15px;font-weight:600;color:#18181b;font-family:${FONT_STACK};">${safeEmail}</td>
+          </tr>
+          <tr>
+            <td style="padding:8px 12px;border-radius:0 0 6px 6px;font-size:13px;color:#71717a;font-family:${FONT_STACK};">Rol asignado</td>
+            <td style="padding:8px 12px;border-radius:0 0 6px 6px;font-size:15px;font-weight:600;color:#18181b;font-family:${FONT_STACK};">${roleLabel}</td>
+          </tr>
+        </table>
+        <div style="text-align:center;margin:24px 0;">
+          <a href="${data.inviteLink}" style="display:inline-block;padding:14px 36px;background:#16A34A;color:#ffffff;text-decoration:none;border-radius:8px;font-size:15px;font-weight:600;font-family:${FONT_STACK};">
+            Configurar mi Cuenta
+          </a>
+        </div>
+        <p style="color:#71717a;font-size:13px;line-height:1.5;margin:16px 0 0;font-family:${FONT_STACK};">
+          Este enlace expira en 7 d\u00edas. Si no solicitaste esta invitaci\u00f3n, puedes ignorar este correo.
+        </p>
+      </div>
+      <div style="background:#f4f4f5;padding:16px 24px;text-align:center;">
+        <p style="color:#71717a;font-size:12px;margin:0;font-family:${FONT_STACK};">
+          Juntos Crecemos - Plataforma de Donaciones
+        </p>
+      </div>
+    </div>
+  </div>
+</body>
+</html>`;
+
+    const { error } = await resend.emails.send({
+      from: fromAddress,
+      replyTo: replyToAddress,
+      to: data.recipientEmail,
+      subject: 'Te han invitado al panel interno de Juntos Crecemos',
+      html: htmlContent,
+    });
+
+    if (error) {
+      console.error('[Email] Resend API error (admin invite):', JSON.stringify(error));
+      return { success: false, error: error.message };
+    }
+
+    console.log(`[Email] Admin invite sent to ${data.recipientEmail}`);
+    return { success: true };
+  } catch (err: any) {
+    console.error('[Email] Unexpected error (admin invite):', err?.message || err);
+    return { success: false, error: err.message || 'Unknown email error' };
+  }
+}
+
 interface OrgReviewEmailData {
   orgEmail: string;
   orgName: string;
