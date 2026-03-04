@@ -114,6 +114,50 @@ export async function registerRoutes(
   });
 
   // ============================================
+  // Check if email has an existing account (for registration UX)
+  // ============================================
+  app.post('/api/auth/check-email', async (req, res) => {
+    try {
+      const { email } = req.body;
+      if (!email) return res.json({ exists: false });
+
+      const normalizedEmail = email.trim().toLowerCase();
+
+      const { data: internalAdmin } = await supabase
+        .from('internal_admins')
+        .select('id')
+        .eq('email', normalizedEmail)
+        .eq('status', 'ACTIVE')
+        .single();
+
+      if (internalAdmin) {
+        return res.json({
+          exists: true,
+          message: 'Este correo ya tiene una cuenta. Usa tu contraseña existente para registrar la organización.',
+        });
+      }
+
+      const { data: donorCheck } = await supabase
+        .from('donor_accounts')
+        .select('id')
+        .eq('email', normalizedEmail)
+        .single();
+
+      if (donorCheck) {
+        return res.json({
+          exists: true,
+          message: 'Este correo ya tiene una cuenta. Usa tu contraseña existente para continuar.',
+        });
+      }
+
+      return res.json({ exists: false });
+    } catch (error) {
+      console.error('Check email error:', error);
+      return res.json({ exists: false });
+    }
+  });
+
+  // ============================================
   // Organization Registration (Auth + Org Creation)
   // ============================================
   app.post('/api/auth/register-org', upload.single('logo'), async (req: RequestWithFile, res) => {
@@ -136,22 +180,56 @@ export async function registerRoutes(
 
       // Website is optional free-text, no URL validation needed
 
-      // Step A: Create Supabase auth user
+      // Step A: Create Supabase auth user (or reuse existing account)
+      let userId: string;
+      let createdNewUser = false;
+
       const { data: authData, error: authError } = await supabase.auth.admin.createUser({
         email: email.trim().toLowerCase(),
         password,
-        email_confirm: true, // Skip email verification for development
+        email_confirm: true,
       });
 
-      if (authError || !authData.user) {
-        console.error('Auth signup error:', authError);
-        if (authError?.message?.includes('already registered')) {
-          return res.status(400).json({ error: 'Este correo ya está registrado' });
-        }
-        return res.status(400).json({ error: 'Error al crear cuenta. Intenta nuevamente.' });
-      }
+      const isEmailExists = authError && (
+        authError.message?.includes('already registered') ||
+        (authError as any).code === 'email_exists' ||
+        (authError as any).status === 422
+      );
 
-      const userId = authData.user.id;
+      if (isEmailExists) {
+        const { createClient } = await import('@supabase/supabase-js');
+        const tempClient = createClient(
+          process.env.SUPABASE_URL!,
+          process.env.SUPABASE_ANON_KEY!
+        );
+
+        const { data: signInData, error: signInError } = await tempClient.auth.signInWithPassword({
+          email: email.trim().toLowerCase(),
+          password,
+        });
+
+        if (signInError || !signInData.user) {
+          return res.status(400).json({ error: 'Este correo ya tiene una cuenta. Usa la contraseña existente para continuar.' });
+        }
+
+        const { count: existingOrgCount } = await supabase
+          .from('organization_users')
+          .select('id', { count: 'exact', head: true })
+          .eq('user_id', signInData.user.id);
+
+        if (existingOrgCount && existingOrgCount > 0) {
+          return res.status(400).json({ error: 'Este correo ya está asociado a una organización.' });
+        }
+
+        userId = signInData.user.id;
+        await tempClient.auth.signOut();
+      } else if (authError || !authData.user) {
+        console.error('Auth signup error:', authError);
+        return res.status(400).json({ error: 'Error al crear cuenta. Intenta nuevamente.' });
+      } else {
+        userId = authData.user.id;
+        createdNewUser = true;
+      }
 
       // Step B: Generate unique slug
       let baseSlug = generateSlug(orgName.trim());
@@ -197,8 +275,9 @@ export async function registerRoutes(
 
       if (orgError || !org) {
         console.error('Create org error:', orgError);
-        // Rollback: delete auth user
-        await supabase.auth.admin.deleteUser(userId);
+        if (createdNewUser) {
+          await supabase.auth.admin.deleteUser(userId);
+        }
         return res.status(400).json({ error: 'Error al crear la organización. Intenta nuevamente.' });
       }
 
@@ -213,9 +292,10 @@ export async function registerRoutes(
 
       if (linkError) {
         console.error('Link user to org error:', linkError);
-        // Critical error - rollback both org and auth user
         await supabase.from('organizations').delete().eq('id', org.id);
-        await supabase.auth.admin.deleteUser(userId);
+        if (createdNewUser) {
+          await supabase.auth.admin.deleteUser(userId);
+        }
         return res.status(400).json({ error: 'Error al configurar la cuenta. Intenta nuevamente.' });
       }
 

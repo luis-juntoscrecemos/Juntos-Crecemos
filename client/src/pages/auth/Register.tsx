@@ -1,13 +1,14 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { Link, useLocation } from 'wouter';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Mail, Lock, Eye, EyeOff, Building2, Globe, Upload, X, Image } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, Building2, Globe, Upload, X, Image, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { AuthLogo } from '@/components/common/AuthLogo';
@@ -36,9 +37,37 @@ export default function Register() {
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [logoError, setLogoError] = useState<string | null>(null);
+  const [emailNotice, setEmailNotice] = useState<string | null>(null);
+  const [emailCheckTimeout, setEmailCheckTimeout] = useState<ReturnType<typeof setTimeout> | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const { signIn } = useAuth();
+
+  const checkEmail = useCallback((email: string) => {
+    if (emailCheckTimeout) clearTimeout(emailCheckTimeout);
+    if (!email || !email.includes('@')) {
+      setEmailNotice(null);
+      return;
+    }
+    const timeout = setTimeout(async () => {
+      try {
+        const response = await fetch('/api/auth/check-email', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email }),
+        });
+        const result = await response.json();
+        if (result.exists && result.message) {
+          setEmailNotice(result.message);
+        } else {
+          setEmailNotice(null);
+        }
+      } catch {
+        setEmailNotice(null);
+      }
+    }, 500);
+    setEmailCheckTimeout(timeout);
+  }, [emailCheckTimeout]);
 
   const form = useForm<RegisterFormData>({
     resolver: zodResolver(registerSchema),
@@ -268,12 +297,24 @@ export default function Register() {
                             className="pl-10"
                             data-testid="input-email"
                             {...field}
+                            onChange={(e) => {
+                              field.onChange(e);
+                              checkEmail(e.target.value);
+                            }}
                           />
                         </div>
                       </FormControl>
                       <FormDescription>
                         Este será el correo de acceso y contacto de tu organización
                       </FormDescription>
+                      {emailNotice && (
+                        <Alert className="mt-2 border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950" data-testid="alert-email-notice">
+                          <Info className="h-4 w-4 text-amber-600" />
+                          <AlertDescription className="text-amber-800 dark:text-amber-200 text-sm">
+                            {emailNotice}
+                          </AlertDescription>
+                        </Alert>
+                      )}
                       <FormMessage />
                     </FormItem>
                   )}
