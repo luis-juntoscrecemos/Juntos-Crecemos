@@ -169,7 +169,7 @@ export async function sendDonationReceipt(data: DonationReceiptData): Promise<{ 
 </body>
 </html>`;
 
-    const fromAddress = process.env.EMAIL_FROM || 'Juntos Crecemos <gracias@mail.juntoscrecemos.co>';
+    const fromAddress = process.env.EMAIL_FROM || 'Juntos Crecemos <onboarding@resend.dev>';
     const replyToAddress = process.env.EMAIL_REPLY_TO || 'hola@juntoscrecemos.co';
 
     const { error } = await resend.emails.send({
@@ -217,7 +217,7 @@ export async function sendPendingOrgNotification(data: PendingOrgNotificationDat
     const safeOrgName = escapeHtml(data.orgName);
     const safeOrgEmail = escapeHtml(data.orgEmail);
     const safeStatus = escapeHtml(data.reviewStatus);
-    const fromAddress = process.env.EMAIL_FROM || 'Juntos Crecemos <gracias@mail.juntoscrecemos.co>';
+    const fromAddress = process.env.EMAIL_FROM || 'Juntos Crecemos <onboarding@resend.dev>';
     const replyToAddress = process.env.EMAIL_REPLY_TO || 'hola@juntoscrecemos.co';
 
     const appUrl = (process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : process.env.REPLIT_DEPLOYMENT_URL ? `https://${process.env.REPLIT_DEPLOYMENT_URL}` : 'https://juntoscrecemos.co');
@@ -328,7 +328,7 @@ export async function sendAdminInviteEmail(data: AdminInviteEmailData): Promise<
     const safeEmail = escapeHtml(data.recipientEmail);
     const safeInviter = escapeHtml(data.inviterEmail);
     const roleLabel = ROLE_LABELS_ES[data.role] || data.role;
-    const fromAddress = process.env.EMAIL_FROM || 'Juntos Crecemos <gracias@mail.juntoscrecemos.co>';
+    const fromAddress = process.env.EMAIL_FROM || 'Juntos Crecemos <onboarding@resend.dev>';
     const replyToAddress = process.env.EMAIL_REPLY_TO || 'hola@juntoscrecemos.co';
 
     const appUrl = (process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : process.env.REPLIT_DEPLOYMENT_URL ? `https://${process.env.REPLIT_DEPLOYMENT_URL}` : 'https://juntoscrecemos.co');
@@ -423,7 +423,7 @@ export async function sendOrgReviewEmail(data: OrgReviewEmailData): Promise<{ su
     }
 
     const safeOrgName = escapeHtml(data.orgName);
-    const fromAddress = process.env.EMAIL_FROM || 'Juntos Crecemos <gracias@mail.juntoscrecemos.co>';
+    const fromAddress = process.env.EMAIL_FROM || 'Juntos Crecemos <onboarding@resend.dev>';
     const replyToAddress = process.env.EMAIL_REPLY_TO || 'hola@juntoscrecemos.co';
 
     const isApproved = data.action === 'APPROVED';
