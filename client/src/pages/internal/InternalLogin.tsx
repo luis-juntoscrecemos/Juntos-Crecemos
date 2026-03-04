@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { useLocation } from 'wouter';
-import { Shield } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -8,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { internalApi } from '@/lib/internalApi';
+import juntosLogo from '@/assets/juntos-crecemos-logo.png';
 
 export default function InternalLogin() {
   const [email, setEmail] = useState('');
@@ -50,9 +50,12 @@ export default function InternalLogin() {
     <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <div className="mx-auto w-12 h-12 rounded-full bg-amber-500/10 flex items-center justify-center mb-4">
-            <Shield className="w-6 h-6 text-amber-500" />
-          </div>
+          <img
+            src={juntosLogo}
+            alt="Juntos Crecemos"
+            className="mx-auto h-16 w-16 object-contain mb-4"
+            data-testid="img-internal-login-logo"
+          />
           <CardTitle>Panel Interno</CardTitle>
           <CardDescription>Acceso restringido a administradores internos</CardDescription>
         </CardHeader>

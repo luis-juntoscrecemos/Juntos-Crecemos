@@ -9,7 +9,9 @@ import {
   Settings,
   LogOut,
   Menu,
-  ChevronLeft
+  ChevronLeft,
+  Shield,
+  ArrowRightLeft
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -32,6 +34,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { Separator } from '@/components/ui/separator';
 import { ThemeModeToggle } from '@/components/common/ThemeModeToggle';
+import { internalApi } from '@/lib/internalApi';
 import juntosLogo from '@/assets/juntos-crecemos-logo.png';
 import darkLogo from '@assets/Juntos_Crecemos_Transparent_1772133029306.png';
 import type { Organization } from '@shared/schema';
@@ -47,7 +50,7 @@ const secondaryNavItems = [
   { title: 'Configuración', href: '/settings', icon: Settings },
 ];
 
-function AppSidebar({ organization }: { organization?: Organization | null }) {
+function AppSidebar({ organization, isInternalAdmin }: { organization?: Organization | null; isInternalAdmin?: boolean }) {
   const [location] = useLocation();
   const { user, signOut } = useAuth();
 
@@ -128,7 +131,20 @@ function AppSidebar({ organization }: { organization?: Organization | null }) {
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="p-4">
+      <SidebarFooter className="p-4 space-y-2">
+        {isInternalAdmin && (
+          <Link href="/internal/dashboard">
+            <Button
+              variant="outline"
+              className="w-full gap-2 border-amber-500/50 text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/30"
+              data-testid="button-switch-internal"
+            >
+              <Shield className="w-4 h-4" />
+              <span>Panel Interno</span>
+              <ArrowRightLeft className="w-3 h-3 ml-auto" />
+            </Button>
+          </Link>
+        )}
         <div className="flex items-center gap-3 p-2 rounded-md bg-sidebar-accent">
           <Avatar className="h-8 w-8">
             <AvatarFallback className="bg-primary text-primary-foreground text-xs">
@@ -181,6 +197,15 @@ export function AppShell({ children }: AppShellProps) {
   const { data: orgResponse } = useQuery<{ data?: Organization }>({
     queryKey: ['/api/organizations/me'],
   });
+
+  const { data: internalCheckResponse } = useQuery({
+    queryKey: ['internal-admin-check'],
+    queryFn: () => internalApi.check(),
+    retry: false,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const isInternalAdmin = !!(internalCheckResponse as any)?.data?.data?.isInternalAdmin;
   
   const organization = orgResponse?.data;
 
@@ -204,7 +229,7 @@ export function AppShell({ children }: AppShellProps) {
   return (
     <SidebarProvider style={sidebarStyle}>
       <div className="flex h-screen w-full">
-        <AppSidebar organization={organization} />
+        <AppSidebar organization={organization} isInternalAdmin={isInternalAdmin} />
         <div className="flex flex-col flex-1 overflow-hidden">
           <TopBar organization={organization} />
           {isPending && (

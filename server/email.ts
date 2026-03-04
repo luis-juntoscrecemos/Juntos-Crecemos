@@ -193,6 +193,116 @@ export async function sendDonationReceipt(data: DonationReceiptData): Promise<{ 
   }
 }
 
+interface PendingOrgNotificationData {
+  adminEmails: string[];
+  orgName: string;
+  orgEmail: string;
+  reviewStatus: string;
+}
+
+export async function sendPendingOrgNotification(data: PendingOrgNotificationData): Promise<{ success: boolean; error?: string }> {
+  try {
+    if (!process.env.RESEND_API_KEY) {
+      console.warn('[Email] RESEND_API_KEY not configured, skipping pending org notification');
+      return { success: false, error: 'Email service not configured' };
+    }
+
+    if (!data.adminEmails.length) {
+      console.warn('[Email] No super admin emails found, skipping pending org notification');
+      return { success: false, error: 'No super admin emails' };
+    }
+
+    console.log(`[Email] Sending pending org notification to ${data.adminEmails.length} super admin(s) for org "${data.orgName}"`);
+
+    const safeOrgName = escapeHtml(data.orgName);
+    const safeOrgEmail = escapeHtml(data.orgEmail);
+    const safeStatus = escapeHtml(data.reviewStatus);
+    const fromAddress = process.env.EMAIL_FROM || 'Juntos Crecemos <gracias@mail.juntoscrecemos.co>';
+    const replyToAddress = process.env.EMAIL_REPLY_TO || 'hola@juntoscrecemos.co';
+
+    const appUrl = (process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : process.env.REPLIT_DEPLOYMENT_URL ? `https://${process.env.REPLIT_DEPLOYMENT_URL}` : 'https://juntoscrecemos.co');
+    const logoUrl = `${appUrl}/branding/juntos-crecemos-logo.png`;
+    const pendingUrl = `${appUrl}/internal/organizaciones-pendientes`;
+
+    const subject = `Nueva organización pendiente de revisión: ${data.orgName}`;
+
+    const htmlContent = `
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+  </style>
+</head>
+<body style="margin:0;padding:0;background-color:#f4f4f5;font-family:${FONT_STACK};">
+  <div style="max-width:560px;margin:0 auto;padding:32px 16px;">
+    <div style="background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #e4e4e7;">
+      <div style="background:#F59E0B;padding:24px;text-align:center;">
+        <img src="${logoUrl}" alt="Juntos Crecemos" style="height:40px;margin-bottom:12px;" />
+        <h1 style="color:#ffffff;font-size:20px;margin:0;font-family:${FONT_STACK};">Organización Pendiente de Revisión</h1>
+      </div>
+      <div style="padding:24px;">
+        <p style="color:#18181b;font-size:15px;line-height:1.6;margin:0 0 16px;font-family:${FONT_STACK};">
+          Hola,
+        </p>
+        <p style="color:#18181b;font-size:15px;line-height:1.6;margin:0 0 20px;font-family:${FONT_STACK};">
+          Una nueva organización se ha registrado y está pendiente de revisión:
+        </p>
+        <table style="width:100%;border-collapse:collapse;margin-bottom:20px;">
+          <tr>
+            <td style="padding:8px 12px;background:#f4f4f5;border-radius:6px 6px 0 0;font-size:13px;color:#71717a;font-family:${FONT_STACK};">Nombre de la organización</td>
+            <td style="padding:8px 12px;background:#f4f4f5;border-radius:6px 6px 0 0;font-size:15px;font-weight:600;color:#18181b;font-family:${FONT_STACK};">${safeOrgName}</td>
+          </tr>
+          <tr>
+            <td style="padding:8px 12px;font-size:13px;color:#71717a;font-family:${FONT_STACK};">Email del administrador</td>
+            <td style="padding:8px 12px;font-size:15px;color:#18181b;font-family:${FONT_STACK};">${safeOrgEmail}</td>
+          </tr>
+          <tr>
+            <td style="padding:8px 12px;background:#f4f4f5;border-radius:0 0 6px 6px;font-size:13px;color:#71717a;font-family:${FONT_STACK};">Estado</td>
+            <td style="padding:8px 12px;background:#f4f4f5;border-radius:0 0 6px 6px;font-size:15px;font-family:${FONT_STACK};">
+              <span style="display:inline-block;padding:2px 10px;border-radius:9999px;background:#FEF3C7;color:#92400E;font-size:13px;font-weight:600;">${safeStatus}</span>
+            </td>
+          </tr>
+        </table>
+        <div style="text-align:center;margin:24px 0;">
+          <a href="${pendingUrl}" style="display:inline-block;padding:12px 32px;background:#16A34A;color:#ffffff;text-decoration:none;border-radius:8px;font-size:15px;font-weight:600;font-family:${FONT_STACK};">
+            Revisar Organizaciones Pendientes
+          </a>
+        </div>
+      </div>
+      <div style="background:#f4f4f5;padding:16px 24px;text-align:center;">
+        <p style="color:#71717a;font-size:12px;margin:0;font-family:${FONT_STACK};">
+          Juntos Crecemos - Plataforma de Donaciones
+        </p>
+      </div>
+    </div>
+  </div>
+</body>
+</html>`;
+
+    const { error } = await resend.emails.send({
+      from: fromAddress,
+      replyTo: replyToAddress,
+      to: data.adminEmails,
+      subject,
+      html: htmlContent,
+    });
+
+    if (error) {
+      console.error('[Email] Resend API error (pending org):', JSON.stringify(error));
+      return { success: false, error: error.message };
+    }
+
+    console.log(`[Email] Pending org notification sent to ${data.adminEmails.join(', ')}`);
+    return { success: true };
+  } catch (err: any) {
+    console.error('[Email] Unexpected error (pending org):', err?.message || err);
+    return { success: false, error: err.message || 'Unknown email error' };
+  }
+}
+
 interface OrgReviewEmailData {
   orgEmail: string;
   orgName: string;

@@ -5,7 +5,7 @@ import { authMiddleware, optionalAuthMiddleware, donorAuthMiddleware, type Authe
 import { insertDonationIntentSchema } from "@shared/schema";
 import multer, { FileFilterCallback } from "multer";
 import { customAlphabet } from "nanoid";
-import { sendDonationReceipt } from "./email";
+import { sendDonationReceipt, sendPendingOrgNotification } from "./email";
 import sanitizeHtml from "sanitize-html";
 import { ObjectStorageService, ObjectNotFoundError } from "./replit_integrations/object_storage";
 import { registerInternalRoutes } from "./internalRoutes";
@@ -278,6 +278,26 @@ export async function registerRoutes(
           console.error('Logo processing error:', logoError);
           // Continue without logo
         }
+      }
+
+      // Step G: Notify super admins about new pending org (non-critical)
+      try {
+        const { data: superAdmins } = await supabase
+          .from('internal_admins')
+          .select('email')
+          .eq('role', 'SUPER_ADMIN')
+          .eq('status', 'ACTIVE');
+
+        if (superAdmins && superAdmins.length > 0) {
+          sendPendingOrgNotification({
+            adminEmails: superAdmins.map((a: { email: string }) => a.email),
+            orgName: orgName.trim(),
+            orgEmail: email.trim().toLowerCase(),
+            reviewStatus: 'PENDING',
+          }).catch(err => console.error('Pending org notification error:', err));
+        }
+      } catch (notifyErr) {
+        console.error('Error fetching super admins for notification:', notifyErr);
       }
 
       res.status(201).json({

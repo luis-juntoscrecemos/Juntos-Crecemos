@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'wouter';
+import { useQuery } from '@tanstack/react-query';
 import {
   LayoutDashboard,
   Building2,
@@ -13,6 +14,7 @@ import {
   X,
   AlertTriangle,
   ClipboardCheck,
+  ArrowRightLeft,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -48,6 +50,13 @@ export function InternalShell({ children, admin, impersonating, onStopImpersonat
   const [location] = useLocation();
   const { signOut } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
+
+  const { data: donorCheckResponse } = useQuery<{ data?: { isOrgUser: boolean } }>({
+    queryKey: ['/api/donor/check'],
+    retry: false,
+    staleTime: 5 * 60 * 1000,
+  });
+  const isOrgUser = !!(donorCheckResponse?.data as any)?.isOrgUser;
 
   return (
     <div className="flex h-screen overflow-hidden" data-testid="internal-shell">
@@ -99,9 +108,22 @@ export function InternalShell({ children, admin, impersonating, onStopImpersonat
           })}
         </nav>
 
-        <div className="px-3 py-4 border-t border-slate-700">
+        <div className="px-3 py-4 border-t border-slate-700 space-y-2">
+          {isOrgUser && (
+            <Link href="/dashboard">
+              <Button
+                variant="ghost"
+                className="w-full justify-start gap-3 text-emerald-400 hover:bg-slate-800 hover:text-emerald-300"
+                data-testid="button-switch-org"
+              >
+                <Building2 className="w-4 h-4" />
+                Panel de Organización
+                <ArrowRightLeft className="w-3 h-3 ml-auto" />
+              </Button>
+            </Link>
+          )}
           {admin && (
-            <div className="px-3 mb-3">
+            <div className="px-3 mb-1">
               <p className="text-xs text-slate-400 truncate">{admin.email}</p>
               <Badge variant="outline" className="mt-1 text-xs border-amber-500/50 text-amber-400">
                 {ROLE_LABELS[admin.role] || admin.role}
