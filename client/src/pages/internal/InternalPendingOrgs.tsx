@@ -128,7 +128,7 @@ export default function InternalPendingOrgs({ adminRole }: { adminRole: string }
         </div>
       ) : orgs.length === 0 ? (
         <EmptyState
-          icon={<CheckCircle className="w-12 h-12 text-green-500" />}
+          icon={CheckCircle}
           title="No hay organizaciones pendientes"
           description="Todas las organizaciones han sido revisadas."
         />
