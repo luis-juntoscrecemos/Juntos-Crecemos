@@ -70,6 +70,8 @@ export interface Campaign {
   allow_recurring: boolean;
   recurring_intervals: string[] | null;
   default_recurring_interval: string | null;
+  start_date: string | null;
+  end_date: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -91,6 +93,8 @@ export const insertCampaignSchema = z.object({
   allow_recurring: z.boolean().default(false),
   recurring_intervals: z.array(z.string()).nullable().optional(),
   default_recurring_interval: z.string().nullable().optional(),
+  start_date: z.string().nullable().optional(),
+  end_date: z.string().nullable().optional(),
 });
 
 export type InsertCampaign = z.infer<typeof insertCampaignSchema>;

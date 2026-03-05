@@ -867,6 +867,12 @@ export async function registerRoutes(
       if (body.default_recurring_interval) {
         insertObj.default_recurring_interval = body.default_recurring_interval;
       }
+      if (body.start_date) {
+        insertObj.start_date = body.start_date;
+      }
+      if (body.end_date) {
+        insertObj.end_date = body.end_date;
+      }
 
       const { data, error } = await supabase
         .from('campaigns')
@@ -942,6 +948,12 @@ export async function registerRoutes(
 
       if (body.default_recurring_interval !== undefined) {
         updateObj.default_recurring_interval = body.default_recurring_interval || null;
+      }
+      if (body.start_date !== undefined) {
+        updateObj.start_date = body.start_date || null;
+      }
+      if (body.end_date !== undefined) {
+        updateObj.end_date = body.end_date || null;
       }
 
       if (req.file) {

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'wouter';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -10,6 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTheme } from '@/contexts/ThemeContext';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { AuthLogo } from '@/components/common/AuthLogo';
 
@@ -26,6 +27,11 @@ export default function Login() {
   const [isLoading, setIsLoading] = useState(false);
   const { signIn } = useAuth();
   const { toast } = useToast();
+  const { setMode } = useTheme();
+
+  useEffect(() => {
+    setMode('light');
+  }, [setMode]);
 
   const form = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),

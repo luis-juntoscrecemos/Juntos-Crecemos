@@ -77,6 +77,8 @@ function CampaignForm({ campaign, onSuccess, onCancel }: CampaignFormProps) {
       allow_recurring: campaign?.allow_recurring ?? false,
       recurring_intervals: campaign?.recurring_intervals || [],
       default_recurring_interval: campaign?.default_recurring_interval || null,
+      start_date: campaign?.start_date || '',
+      end_date: campaign?.end_date || '',
     },
   });
 
@@ -192,6 +194,12 @@ function CampaignForm({ campaign, onSuccess, onCancel }: CampaignFormProps) {
     }
     if (data.default_recurring_interval) {
       formData.append('default_recurring_interval', data.default_recurring_interval);
+    }
+    if (data.start_date) {
+      formData.append('start_date', data.start_date);
+    }
+    if (data.end_date) {
+      formData.append('end_date', data.end_date);
     }
 
     if (imageFile) {
@@ -394,6 +402,36 @@ function CampaignForm({ campaign, onSuccess, onCancel }: CampaignFormProps) {
             </FormItem>
           )}
         />
+
+        <div className="grid grid-cols-2 gap-4">
+          <FormField
+            control={form.control}
+            name="start_date"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Fecha de inicio</FormLabel>
+                <FormControl>
+                  <Input type="date" {...field} value={field.value || ''} data-testid="input-campaign-start-date" />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="end_date"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Fecha de fin</FormLabel>
+                <FormControl>
+                  <Input type="date" {...field} value={field.value || ''} data-testid="input-campaign-end-date" />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
 
         <div className="grid grid-cols-2 gap-4">
           <FormItem>
