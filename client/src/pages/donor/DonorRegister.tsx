@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'wouter';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -10,6 +10,8 @@ import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTheme } from '@/contexts/ThemeContext';
+import { translateAuthError } from '@/lib/authErrors';
 import { AuthLogo } from '@/components/common/AuthLogo';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { Heart, Eye, EyeOff, Mail, User, Lock } from 'lucide-react';
@@ -29,6 +31,12 @@ export default function DonorRegister() {
   const [showPassword, setShowPassword] = useState(false);
   const { toast } = useToast();
   const { signUp, signIn } = useAuth();
+  const { setMode, setAccent } = useTheme();
+
+  useEffect(() => {
+    setMode('light');
+    setAccent('classic');
+  }, [setMode, setAccent]);
 
   const form = useForm<RegisterFormData>({
     resolver: zodResolver(registerSchema),
@@ -72,7 +80,7 @@ export default function DonorRegister() {
       toast({
         variant: 'destructive',
         title: 'Error al registrarse',
-        description: error.message || 'No se pudo crear la cuenta. Intenta nuevamente.',
+        description: translateAuthError(error.message || '', 'No se pudo crear la cuenta. Intenta nuevamente.'),
       });
     },
   });

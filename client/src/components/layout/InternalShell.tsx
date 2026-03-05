@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'wouter';
 import {
   LayoutDashboard,
@@ -18,6 +18,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTheme } from '@/contexts/ThemeContext';
 import { ThemeModeToggle } from '@/components/common/ThemeModeToggle';
 import type { InternalAdmin } from '@shared/schema';
 
@@ -50,6 +51,11 @@ export function InternalShell({ children, admin, hasOrganization, impersonating,
   const [location] = useLocation();
   const { signOut } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { setAccent } = useTheme();
+
+  useEffect(() => {
+    setAccent('classic');
+  }, [setAccent]);
 
   const isOrgUser = !!hasOrganization;
 

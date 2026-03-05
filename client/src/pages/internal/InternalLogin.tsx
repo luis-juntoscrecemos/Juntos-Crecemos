@@ -5,6 +5,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTheme } from '@/contexts/ThemeContext';
+import { translateAuthError } from '@/lib/authErrors';
 import { useToast } from '@/hooks/use-toast';
 import { internalApi } from '@/lib/internalApi';
 import juntosLogo from '@/assets/juntos-crecemos-logo.png';
@@ -16,6 +18,12 @@ export default function InternalLogin() {
   const { signIn, user, loading: authLoading } = useAuth();
   const { toast } = useToast();
   const [, setLocation] = useLocation();
+  const { setMode, setAccent } = useTheme();
+
+  useEffect(() => {
+    setMode('light');
+    setAccent('classic');
+  }, [setMode, setAccent]);
 
   useEffect(() => {
     if (!authLoading && user) {
@@ -35,7 +43,7 @@ export default function InternalLogin() {
     try {
       const { error } = await signIn(email, password);
       if (error) {
-        toast({ variant: 'destructive', title: 'Error', description: error.message });
+        toast({ variant: 'destructive', title: 'Error', description: translateAuthError(error.message || '') });
       } else {
         setLocation('/internal/dashboard');
       }

@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { Link, useLocation } from 'wouter';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -13,6 +13,8 @@ import { useToast } from '@/hooks/use-toast';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { AuthLogo } from '@/components/common/AuthLogo';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTheme } from '@/contexts/ThemeContext';
+import { translateAuthError } from '@/lib/authErrors';
 
 const MAX_FILE_SIZE = 2 * 1024 * 1024; // 2MB
 const ACCEPTED_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
@@ -38,6 +40,12 @@ export default function Register() {
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [logoError, setLogoError] = useState<string | null>(null);
   const [emailNotice, setEmailNotice] = useState<string | null>(null);
+  const { setMode, setAccent } = useTheme();
+
+  useEffect(() => {
+    setMode('light');
+    setAccent('classic');
+  }, [setMode, setAccent]);
   const [emailCheckTimeout, setEmailCheckTimeout] = useState<ReturnType<typeof setTimeout> | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
@@ -153,7 +161,7 @@ export default function Register() {
       toast({
         variant: 'destructive',
         title: 'Error al registrarse',
-        description: error.message || 'No se pudo crear la cuenta',
+        description: translateAuthError(error.message || '', 'No se pudo crear la cuenta'),
       });
     } finally {
       setIsLoading(false);

@@ -11,6 +11,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
+import { translateAuthError } from '@/lib/authErrors';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { AuthLogo } from '@/components/common/AuthLogo';
 
@@ -27,11 +28,12 @@ export default function Login() {
   const [isLoading, setIsLoading] = useState(false);
   const { signIn } = useAuth();
   const { toast } = useToast();
-  const { setMode } = useTheme();
+  const { setMode, setAccent } = useTheme();
 
   useEffect(() => {
     setMode('light');
-  }, [setMode]);
+    setAccent('classic');
+  }, [setMode, setAccent]);
 
   const form = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
@@ -50,7 +52,7 @@ export default function Login() {
       toast({
         variant: 'destructive',
         title: 'Error al iniciar sesión',
-        description: error.message || 'Credenciales inválidas',
+        description: translateAuthError(error.message || ''),
       });
       return;
     }

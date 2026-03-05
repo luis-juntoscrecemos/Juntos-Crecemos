@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { internalApi } from '@/lib/internalApi';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTheme } from '@/contexts/ThemeContext';
 import logoPath from '@/assets/juntos-crecemos-logo.png';
 
 const ROLE_LABELS: Record<string, string> = {
@@ -19,6 +20,7 @@ const ROLE_LABELS: Record<string, string> = {
 export default function AcceptInvite() {
   const [, setLocation] = useLocation();
   const { user, signUp, signIn } = useAuth();
+  const { setMode, setAccent } = useTheme();
   const [status, setStatus] = useState<'loading' | 'setup' | 'processing' | 'success' | 'error'>('loading');
   const [message, setMessage] = useState('');
   const [inviteEmail, setInviteEmail] = useState('');
@@ -28,6 +30,11 @@ export default function AcceptInvite() {
   const [showPassword, setShowPassword] = useState(false);
   const [passwordError, setPasswordError] = useState('');
   const [token, setToken] = useState('');
+
+  useEffect(() => {
+    setMode('light');
+    setAccent('classic');
+  }, [setMode, setAccent]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);

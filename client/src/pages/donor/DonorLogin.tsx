@@ -10,6 +10,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTheme } from '@/contexts/ThemeContext';
+import { translateAuthError } from '@/lib/authErrors';
 import { AuthLogo } from '@/components/common/AuthLogo';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { Eye, EyeOff, Heart, UserPlus } from 'lucide-react';
@@ -29,6 +31,12 @@ export default function DonorLogin() {
   const { toast } = useToast();
   const { signIn, user, loading: authLoading } = useAuth();
   const queryClient = useQueryClient();
+  const { setMode, setAccent } = useTheme();
+
+  useEffect(() => {
+    setMode('light');
+    setAccent('classic');
+  }, [setMode, setAccent]);
 
   // Check if logged-in user needs to create donor account
   const { data: checkResponse, isLoading: checkLoading } = useQuery<{ data?: { isDonor: boolean } }>({
@@ -75,13 +83,19 @@ export default function DonorLogin() {
 
   const onSubmit = async (data: LoginFormData) => {
     try {
-      await signIn(data.email, data.password);
-      // The useEffect above will handle redirect or show register form
+      const { error } = await signIn(data.email, data.password);
+      if (error) {
+        toast({
+          variant: 'destructive',
+          title: 'Error al iniciar sesión',
+          description: translateAuthError(error.message || ''),
+        });
+      }
     } catch (error: any) {
       toast({
         variant: 'destructive',
         title: 'Error al iniciar sesión',
-        description: error.message || 'Credenciales inválidas',
+        description: translateAuthError(error.message || ''),
       });
     }
   };
